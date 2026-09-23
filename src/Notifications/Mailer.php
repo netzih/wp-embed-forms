@@ -10,8 +10,8 @@ use EmbedForms\Settings;
  */
 final class Mailer {
 
-  public static function entrySubmitted(array $form, array $entry): void {
-    $context = self::context($form, $entry);
+  public static function entrySubmitted(array $form, array $entry, array $extra = [], array $extraHtml = []): void {
+    $context = self::context($form, $entry, $extra, $extraHtml);
     $settings = $form['settings'];
 
     foreach ($settings['notifications'] as $notification) {
@@ -35,7 +35,7 @@ final class Mailer {
     }
   }
 
-  public static function context(array $form, array $entry, array $extra = []): array {
+  public static function context(array $form, array $entry, array $extra = [], array $extraHtml = []): array {
     return [
       'form' => $form,
       'entry' => $entry,
@@ -45,6 +45,7 @@ final class Mailer {
       'admin_email' => (string) get_option('admin_email'),
       'site_name' => wp_specialchars_decode((string) get_option('blogname'), ENT_QUOTES),
       'extra' => $extra,
+      'extra_html' => $extraHtml,
     ];
   }
 

@@ -9,7 +9,7 @@ namespace EmbedForms;
  */
 final class Plugin {
 
-  public const VERSION = '0.1.0';
+  public const VERSION = '0.2.0';
 
   public const CAPABILITY = 'manage_options';
 
@@ -44,6 +44,7 @@ final class Plugin {
       (new Rest\SubmitController())->register();
     });
     add_shortcode('embed_form', [Embed::class, 'shortcode']);
+    (new Payments\Module())->register();
     if (is_admin()) {
       (new Admin\Menu())->register();
     }
@@ -56,6 +57,7 @@ final class Plugin {
   }
 
   public static function deactivate(): void {
+    wp_clear_scheduled_hook(Payments\Renewals::CRON);
     flush_rewrite_rules();
   }
 

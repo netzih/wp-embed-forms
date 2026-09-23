@@ -45,6 +45,12 @@
       return;
     }
 
+    var refund = event.target.closest('.ef-confirm-refund');
+    if (refund && !window.confirm(strings.confirmRefund || 'Refund now?')) {
+      event.preventDefault();
+      return;
+    }
+
     var del = event.target.closest('.ef-confirm-delete');
     if (del && !window.confirm(strings.confirmDelete || 'Delete permanently?')) {
       event.preventDefault();

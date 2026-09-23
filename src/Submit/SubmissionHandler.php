@@ -6,6 +6,8 @@ use EmbedForms\Db\Entries;
 use EmbedForms\Db\Forms;
 use EmbedForms\Notifications\Mailer;
 use EmbedForms\Notifications\MergeTags;
+use EmbedForms\Payments\Checkout;
+use EmbedForms\Payments\Pricing;
 use EmbedForms\Schema\FormSchema;
 use EmbedForms\Schema\Validator;
 use EmbedForms\Security\RateLimit;
@@ -74,18 +76,65 @@ final class SubmissionHandler {
       return self::fail(422, __('Please correct the highlighted fields.', 'embed-forms'), $result['errors']);
     }
 
-    $sourceUrl = esc_url_raw((string) ($request['source_url'] ?? ''));
-    $entryId = Entries::create($form, $result['values'], [
-      'status' => 'submitted',
-      'email' => self::payerEmail($form, $result['values']),
+    $values = $result['values'];
+    $pricing = Pricing::compute($form['schema'], $values);
+    $needsPayment = self::paymentShown($form['schema'], $values) && $pricing['cents'] > 0;
+
+    // One page view sends one submission key with every attempt, so a
+    // resubmit (after a decline, a timeout or a double click) continues the
+    // same entry instead of starting another.
+    $submissionKey = preg_match('/^[A-Za-z0-9_-]{16,64}$/', (string) ($request['submission_key'] ?? '')) ? (string) $request['submission_key'] : '';
+    $existing = Entries::findBySubmissionKey((int) $form['id'], $submissionKey);
+    if ($existing && in_array($existing['status'], ['submitted', 'paid'], TRUE)) {
+      return ['status' => 200, 'body' => ['ok' => TRUE, 'entry' => $existing['id'], 'confirmation' => self::confirmation($form, $existing)]];
+    }
+
+    if ($needsPayment) {
+      if (!\EmbedForms\Plugin::paymentsAvailable()) {
+        return self::fail(503, __('This form cannot take payments right now. Please contact us.', 'embed-forms'));
+      }
+      if (RateLimit::exceeded('declined', $ip, (int) Settings::get('failed_payment_limit'), HOUR_IN_SECONDS)) {
+        return self::fail(429, __('Too many declined payments from your network. Please try again later or contact us.', 'embed-forms'));
+      }
+    }
+
+    $meta = [
+      'status' => $needsPayment ? 'pending_payment' : 'submitted',
+      'email' => self::payerEmail($form, $values),
+      'amount' => $needsPayment ? $pricing['total'] : NULL,
       'ip' => $ip,
       'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT'])) : '',
-      'source_url' => $sourceUrl,
-    ]);
+      'source_url' => esc_url_raw((string) ($request['source_url'] ?? '')),
+      'submission_key' => $submissionKey,
+    ];
+    if ($existing) {
+      $entryId = (int) $existing['id'];
+      Entries::update($entryId, ['data' => $values, 'form_version' => (int) $form['version'], 'status' => $meta['status'], 'payer_email' => $meta['email'], 'amount' => $meta['amount']]);
+    }
+    else {
+      $entryId = Entries::create($form, $values, $meta);
+    }
     if ($entryId <= 0) {
       return self::fail(500, __('Your submission could not be saved. Please try again.', 'embed-forms'));
     }
     $entry = Entries::find($entryId);
+
+    $tags = [];
+    $html = [];
+    if ($needsPayment) {
+      $paid = Checkout::pay($form, $entry, $values, $pricing, $request);
+      if (!$paid['ok']) {
+        Entries::setStatus($entryId, $paid['unresolved'] ? 'pending_payment' : 'failed');
+        if (!empty($paid['declined'])) {
+          RateLimit::hit('declined', $ip, PHP_INT_MAX, HOUR_IN_SECONDS);
+        }
+        return self::fail($paid['status'], $paid['message'], [], 'payment');
+      }
+      $entry = Entries::find($entryId);
+      $tags = $paid['tags'];
+      $subscription = $paid['payment'] && $paid['payment']['subscription_id'] ? \EmbedForms\Db\Subscriptions::find((int) $paid['payment']['subscription_id']) : NULL;
+      $html['payment_summary'] = Checkout::summaryHtml($pricing, $paid['payment'], $subscription);
+    }
 
     /**
      * A new entry was stored. Connectors (CRM, webhooks) hook here.
@@ -93,18 +142,32 @@ final class SubmissionHandler {
     do_action('embed_forms_entry_submitted', $entry, $form);
 
     try {
-      Mailer::entrySubmitted($form, $entry);
+      Mailer::entrySubmitted($form, $entry, $tags, $html);
     }
     catch (\Throwable $e) {
       error_log('[embed-forms] notification failed for entry ' . $entryId . ': ' . $e->getMessage());
     }
 
-    return ['status' => 200, 'body' => ['ok' => TRUE, 'entry' => $entryId, 'confirmation' => self::confirmation($form, $entry)]];
+    return ['status' => 200, 'body' => ['ok' => TRUE, 'entry' => $entryId, 'confirmation' => self::confirmation($form, $entry, $tags, $html)]];
   }
 
-  public static function confirmation(array $form, array $entry): array {
+  /**
+   * Whether the card field is part of the form as answered (conditions can
+   * hide it, e.g. behind a "pay now / pay later" choice).
+   */
+  public static function paymentShown(array $schema, array $values): bool {
+    $visible = \EmbedForms\Schema\Conditions::visibility($schema, $values);
+    foreach ($schema['fields'] ?? [] as $field) {
+      if ($field['type'] === 'payment' && !empty($visible[$field['id']])) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
+  public static function confirmation(array $form, array $entry, array $tags = [], array $html = []): array {
     $confirmation = $form['settings']['confirmation'];
-    $context = Mailer::context($form, $entry);
+    $context = Mailer::context($form, $entry, $tags, $html);
     if ($confirmation['type'] === 'redirect' && $confirmation['url'] !== '') {
       $url = MergeTags::replaceUrl($confirmation['url'], $context);
       return ['type' => 'redirect', 'url' => esc_url_raw($url)];

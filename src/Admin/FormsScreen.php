@@ -304,6 +304,11 @@ final class FormsScreen {
     foreach (['show_title', 'turnstile', 'allow_direct'] as $flag) {
       $settings[$flag] = !empty($settings[$flag]);
     }
+    // Checkboxes printed by other sections name themselves in settings_flags[].
+    foreach ((array) ($post['settings_flags'] ?? []) as $flag) {
+      $flag = sanitize_key((string) $flag);
+      $settings[$flag] = !empty($settings[$flag]);
+    }
     $settings['autoresponder']['enabled'] = !empty($settings['autoresponder']['enabled']);
     if (isset($settings['notifications'][0])) {
       $settings['notifications'][0]['enabled'] = !empty($settings['notifications'][0]['enabled']);

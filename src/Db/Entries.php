@@ -16,6 +16,19 @@ final class Entries {
     return $row ? self::hydrate($row) : NULL;
   }
 
+  /**
+   * The entry a browser already made with this submission key (a resubmit
+   * after a decline or a lost response), if any.
+   */
+  public static function findBySubmissionKey(int $formId, string $key): ?array {
+    if ($key === '') {
+      return NULL;
+    }
+    $db = Db::wpdb();
+    $row = $db->get_row($db->prepare('SELECT * FROM ' . Db::table('entries') . ' WHERE form_id = %d AND submission_key = %s ORDER BY id DESC LIMIT 1', $formId, $key), ARRAY_A);
+    return $row ? self::hydrate($row) : NULL;
+  }
+
   public static function create(array $form, array $values, array $meta = []): int {
     $db = Db::wpdb();
     $now = Db::now();
@@ -29,6 +42,7 @@ final class Entries {
       'ip' => (string) ($meta['ip'] ?? ''),
       'user_agent' => mb_substr((string) ($meta['user_agent'] ?? ''), 0, 255),
       'source_url' => (string) ($meta['source_url'] ?? ''),
+      'submission_key' => (string) ($meta['submission_key'] ?? ''),
       'created_at' => $now,
       'updated_at' => $now,
     ]);
@@ -153,6 +167,7 @@ final class Entries {
     $row['id'] = (int) $row['id'];
     $row['form_id'] = (int) $row['form_id'];
     $row['form_version'] = (int) $row['form_version'];
+    $row['is_read'] = (int) $row['is_read'];
     unset($row['data_json']);
     return $row;
   }

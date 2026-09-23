@@ -15,12 +15,15 @@ final class Menu {
 
   public const PAGE_SETTINGS = 'embed-forms-settings';
 
+  public const PAGE_SUBSCRIPTIONS = 'embed-forms-subscriptions';
+
   public function register(): void {
     add_action('admin_menu', [$this, 'menu']);
     add_action('admin_enqueue_scripts', [$this, 'assets']);
     (new FormsScreen())->registerActions();
     (new EntriesScreen())->registerActions();
     (new SettingsScreen())->register();
+    (new Builder())->register();
   }
 
   public function menu(): void {
@@ -31,6 +34,7 @@ final class Menu {
     $entries = new EntriesScreen();
     $entriesHook = add_submenu_page(self::PAGE_FORMS, __('Entries', 'embed-forms'), __('Entries', 'embed-forms'), Plugin::CAPABILITY, self::PAGE_ENTRIES, [$entries, 'render']);
     add_action('load-' . $entriesHook, [$entries, 'load']);
+    add_submenu_page(self::PAGE_FORMS, __('Subscriptions', 'embed-forms'), __('Subscriptions', 'embed-forms'), Plugin::CAPABILITY, self::PAGE_SUBSCRIPTIONS, [new SubscriptionsScreen(), 'render']);
     add_submenu_page(self::PAGE_FORMS, __('Embed Forms Settings', 'embed-forms'), __('Settings', 'embed-forms'), Plugin::CAPABILITY, self::PAGE_SETTINGS, [new SettingsScreen(), 'render']);
   }
 
@@ -43,7 +47,8 @@ final class Menu {
     wp_enqueue_script('embed-forms-admin', $plugin->url('assets/admin.js'), [], $plugin->assetVersion('assets/admin.js'), TRUE);
     wp_localize_script('embed-forms-admin', 'EmbedFormsAdmin', [
       'copied' => __('Copied', 'embed-forms'),
-      'confirmDelete' => __('Delete this permanently? This cannot be undone.', 'embed-forms'),
+      'confirmDelete' => __('Are you sure? This cannot be undone.', 'embed-forms'),
+      'confirmRefund' => __('Refund this amount to the payer\'s card now?', 'embed-forms'),
     ]);
   }
 

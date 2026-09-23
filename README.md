@@ -20,7 +20,9 @@ From a clone: `bin/build-zip.sh` makes the same zip.
 
 ## Using it
 
-1. **Embed Forms > Add New Form**, build the fields, fill in **Settings**
+1. **Embed Forms > Add New Form**, drag fields from the palette onto the
+   form (or click them), select a field to edit its label, options, width,
+   prefill parameter and conditional logic, fill in **Settings**
    (confirmation, emails, allowed websites), set the status to **Live** and save.
 2. **Embed & share** tab: copy the code.
 
@@ -77,11 +79,69 @@ address parts from `<param>_first`, `<param>_city`, ...). A
 
 `text`, `textarea`, `email`, `phone`, `number`, `select`, `radio`,
 `checkbox`, `date`, `name`, `address`, `hidden`, plus layout: `html`,
-`section`, `page` (starts a new step).
+`section`, `page` (starts a new step), and payment: `amount`, `product`,
+`frequency`, `total`, `payment` (the card).
+
+The builder (`assets/builder.js`) runs on WordPress's bundled React and
+components, so there is no build step. **Edit as JSON** shows the whole
+definition for copying between forms or bulk edits.
+
+## Payments
+
+Payment fields charge through [USAePay Payments](https://github.com/netzih/usaepay-wordpress)
+(credentials, sandbox/live and Apple Pay under **Settings > USAePay**).
+
+- **Amount**: preset amounts with an optional "other", an amount the payer
+  types, or a fixed amount; minimum and maximum. **Product**: a price, with or
+  without a quantity. **Frequency**: one time, weekly, monthly or yearly, with
+  an optional number of payments. **Total** shows the sum. **Card payment**
+  holds USAePay's hosted Pay.js card fields (card data never reaches this
+  site) and, for one-time payments, Apple Pay. It must be on the last page.
+- **The server decides the amount.** It is computed from the validated
+  answers (`Payments\Pricing`); fields hidden by conditions add nothing,
+  whatever the browser sends.
+- **Charge at most once.** Every charge, renewal and refund goes through
+  USAePay Payments' `Reconcile::once()`, with its marker on the payment or
+  subscription row. A page view sends one submission key with every attempt,
+  so a resubmit after a decline, a timeout or a double click continues the
+  same entry (declined attempts stay on it as history) and a request whose
+  answer was lost is looked up at USAePay before anything is sent again.
+- **Card testing**: after **Declined payments per hour** declines from one IP
+  (Embed Forms > Settings), payments are refused for the hour; use Turnstile
+  on payment forms too.
+- **Recurring** choices charge the first payment with `save_card` and create
+  a subscription; this site charges the saved card hourly when due
+  (`embed_forms_renewals` cron), with dates anchored to the signup day. A
+  decline is retried every 3 days, 3 attempts in all, then the subscription
+  is cancelled and the form's notification recipients are emailed. Payers get
+  a receipt for each renewal (per-form setting). Nothing is scheduled in the
+  USAePay console, so cancelling here is all it takes. Apple Pay is offered
+  only for one-time payments (its keys return no saved card).
+- **Entry screen**: payments with USAePay references, refunds (an unsettled
+  payment is voided in full; a settled one refunded in full or in part),
+  the recurring payment with **Cancel**, and a history of every event.
+  **Embed Forms > Subscriptions** lists them all, with **Run renewals now**.
+- In-flight requests appear under **Settings > USAePay > Unresolved
+  requests**, and "Run renewal workers now" there runs this plugin's worker
+  too (needs USAePay Payments with the `usaepay_payments_unresolved` and
+  `usaepay_payments_renewal_workers` filters).
+- Merge tags for payments: `{payment_summary}`, `{payment_amount}`,
+  `{payment_frequency}`, `{transaction_id}`, `{card_brand}`, `{card_last4}`,
+  `{next_payment_date}`.
+- Invoices are `EF<form>-<entry>` (renewals `EF-S<subscription>`), orderids
+  `<site prefix>-ef-<entry>-<attempt>` and
+  `<site prefix>-ef-s<subscription>-<date>-<attempt>`, `custid` the payer's
+  email, and the first name/address fields go to AVS.
+- USD only, like USAePay Payments.
 
 ### Hooks
 
 - `embed_forms_entry_submitted` (entry, form): a new entry was stored.
+- `embed_forms_payment_completed` (payment, entry, form),
+  `embed_forms_subscription_created`, `embed_forms_renewal_charged`,
+  `embed_forms_payment_refunded`, `embed_forms_subscription_cancelled`.
+- `embed_forms_gateway_client` (NULL, mode): return a `Usaepay\GatewayClient`
+  to replace the real one, e.g. on a fake transport in a test site.
 - `embed_forms_page_config` (config, form), `embed_forms_page_scripts`:
   extend the public page.
 - `embed_forms_base`: the `/f/` path.

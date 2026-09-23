@@ -37,6 +37,16 @@ final class Display {
         $lines = array_filter([(string) ($value['line1'] ?? ''), (string) ($value['line2'] ?? ''), $cityLine, (string) ($value['country'] ?? '')], static fn($l) => trim($l) !== '');
         return implode("\n", $lines);
 
+      case 'amount':
+        return $value === '' ? '' : \EmbedForms\Payments\Money::format((string) $value);
+
+      case 'product':
+        $quantity = (int) $value;
+        return $quantity > 0 ? sprintf('%d × %s', $quantity, \EmbedForms\Payments\Money::format((string) ($field['price'] ?? '0'))) : '';
+
+      case 'frequency':
+        return Fields::frequencyLabel((string) $value);
+
       default:
         return is_scalar($value) ? (string) $value : '';
     }

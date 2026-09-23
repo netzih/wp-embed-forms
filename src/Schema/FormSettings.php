@@ -32,11 +32,12 @@ final class FormSettings {
         'enabled' => FALSE,
         'to_field' => '',
         'subject' => 'Thank you',
-        'body' => "Thank you for your submission.\n\n{all_fields}",
+        'body' => "Thank you for your submission.\n\n{payment_summary}\n\n{all_fields}",
       ],
       'embed_domains' => [],
       'allow_direct' => TRUE,
       'turnstile' => TRUE,
+      'renewal_receipts' => TRUE,
       'max_entries' => 0,
       'closed_message' => 'This form is no longer accepting submissions.',
     ];
@@ -85,6 +86,7 @@ final class FormSettings {
       'embed_domains' => self::domains($in['embed_domains'] ?? []),
       'allow_direct' => array_key_exists('allow_direct', $in) ? !empty($in['allow_direct']) : $d['allow_direct'],
       'turnstile' => array_key_exists('turnstile', $in) ? !empty($in['turnstile']) : $d['turnstile'],
+      'renewal_receipts' => array_key_exists('renewal_receipts', $in) ? !empty($in['renewal_receipts']) : $d['renewal_receipts'],
       'max_entries' => max(0, (int) ($in['max_entries'] ?? 0)),
       'closed_message' => (string) ($in['closed_message'] ?? $d['closed_message']),
     ];

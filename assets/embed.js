@@ -73,7 +73,6 @@
     iframe.src = iframeSrc(base, ref, id);
     iframe.title = el.getAttribute('data-title') || 'Form';
     iframe.setAttribute('allow', 'payment');
-    iframe.setAttribute('allowpaymentrequest', 'true');
     iframe.setAttribute('scrolling', 'no');
     iframe.style.cssText = 'display:block;width:100%;border:0;overflow:hidden;background:transparent;min-height:' + (parseInt(el.getAttribute('data-min-height'), 10) || 200) + 'px;height:' + (parseInt(el.getAttribute('data-min-height'), 10) || 200) + 'px';
     el.innerHTML = '';

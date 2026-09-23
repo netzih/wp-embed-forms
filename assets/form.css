@@ -97,3 +97,30 @@ textarea.ef-input { resize: vertical; min-height: 96px; }
 .ef-confirmation { padding: 20px; border: 1px solid #b8e6bf; background: #edfaef; border-radius: var(--ef-radius); outline: none; }
 .ef-confirmation > :first-child { margin-top: 0; }
 .ef-confirmation > :last-child { margin-bottom: 0; }
+
+/* Payment fields */
+.ef-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ef-chip { font: inherit; cursor: pointer; min-height: 44px; min-width: 72px; padding: 8px 16px; border: 1px solid var(--ef-border); border-radius: var(--ef-radius); background: var(--ef-field-bg); color: var(--ef-text); }
+.ef-chip:hover { border-color: var(--ef-accent); }
+.ef-chip[aria-pressed="true"] { border-color: var(--ef-accent); background: var(--ef-accent); color: var(--ef-accent-text); font-weight: 600; }
+.ef-chip:focus-visible { outline: 2px solid var(--ef-focus); outline-offset: 2px; }
+.ef-money-input { position: relative; margin-top: 10px; max-width: 220px; }
+.ef-money-input[hidden] { display: none; }
+.ef-amount-custom .ef-money-input { margin-top: 0; }
+.ef-money-prefix { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ef-muted); }
+.ef-money-input .ef-input { padding-left: 26px; }
+.ef-amount-fixed, .ef-total-amount { font-size: 1.4rem; font-weight: 700; }
+.ef-product { display: flex; align-items: center; gap: 10px; }
+.ef-product-price { font-weight: 600; }
+.ef-qty { width: 90px; }
+.ef-times { color: var(--ef-muted); }
+.ef-payment { border: 1px solid var(--ef-border); border-radius: var(--ef-radius); padding: 14px; background: var(--ef-field-bg); }
+.ef-card-element { min-height: 44px; }
+.ef-card-element iframe { width: 100% !important; }
+.ef-secure { margin-bottom: 0; }
+.ef-sandbox-note { margin: 0 0 10px; padding: 6px 10px; background: #fcf9e8; border-radius: var(--ef-radius); font-size: 13px; }
+.ef-apple-pay[hidden] { display: none; }
+.ef-apple-pay-button { min-height: 44px; }
+.ef-apple-pay-button apple-pay-button, .ef-apple-pay-button button { width: 100%; }
+.ef-divider { display: flex; align-items: center; gap: 10px; color: var(--ef-muted); font-size: 13px; margin: 12px 0; }
+.ef-divider::before, .ef-divider::after { content: ""; flex: 1; border-top: 1px solid var(--ef-border); }

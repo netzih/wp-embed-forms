@@ -64,6 +64,23 @@ final class FormSchema {
       $out[] = self::field($id, $type, $field);
     }
 
+    foreach (Fields::SINGLE as $single) {
+      if (count(array_filter($out, static fn(array $f) => $f['type'] === $single)) > 1) {
+        throw new \InvalidArgumentException(sprintf('A form can have only one "%s" field.', $single));
+      }
+    }
+    // The card field mints its single-use key on submit, so it must be on
+    // the last page.
+    $paymentAt = NULL;
+    foreach ($out as $i => $field) {
+      if ($field['type'] === 'payment') {
+        $paymentAt = $i;
+      }
+      if ($field['type'] === 'page' && $paymentAt !== NULL) {
+        throw new \InvalidArgumentException('The card payment field must be on the last page (after every page break).');
+      }
+    }
+
     // Rules may only point at input fields that exist.
     $inputs = [];
     foreach ($out as $field) {
@@ -100,6 +117,15 @@ final class FormSchema {
       }
     }
     return $inputs;
+  }
+
+  public static function hasPayment(array $schema): bool {
+    foreach ($schema['fields'] ?? [] as $field) {
+      if ($field['type'] === 'payment') {
+        return TRUE;
+      }
+    }
+    return FALSE;
   }
 
   public static function find(array $schema, string $id): ?array {
@@ -151,6 +177,44 @@ final class FormSchema {
     }
     if ($type === 'textarea') {
       $field['rows'] = max(2, min(20, (int) ($in['rows'] ?? 4)));
+    }
+    if ($type === 'amount') {
+      $mode = (string) ($in['amount_mode'] ?? 'choices');
+      $field['amount_mode'] = in_array($mode, ['fixed', 'choices', 'custom'], TRUE) ? $mode : 'choices';
+      $field['fixed_amount'] = \EmbedForms\Payments\Money::normalize($in['fixed_amount'] ?? '') ?? '0.00';
+      $amounts = [];
+      foreach (is_array($in['amounts'] ?? NULL) ? $in['amounts'] : [] as $choice) {
+        $amount = \EmbedForms\Payments\Money::normalize(is_array($choice) ? ($choice['amount'] ?? '') : $choice);
+        if ($amount !== NULL && $amount !== '0.00') {
+          $amounts[] = ['amount' => $amount, 'label' => self::text(is_array($choice) ? ($choice['label'] ?? '') : '', 255)];
+        }
+      }
+      $field['amounts'] = $amounts;
+      $field['allow_other'] = !empty($in['allow_other']);
+      foreach (['min', 'max'] as $key) {
+        $field[$key] = \EmbedForms\Payments\Money::normalize($in[$key] ?? '') ?? '';
+      }
+    }
+    if ($type === 'product') {
+      $field['price'] = \EmbedForms\Payments\Money::normalize($in['price'] ?? '') ?? '0.00';
+      $field['quantity'] = !empty($in['quantity']);
+      $field['max_quantity'] = max(1, min(1000, (int) ($in['max_quantity'] ?? 10)));
+    }
+    if ($type === 'frequency') {
+      $allowed = array_values(array_intersect(Fields::FREQUENCIES, is_array($in['frequencies'] ?? NULL) ? $in['frequencies'] : ['once', 'month']));
+      $field['frequencies'] = $allowed ?: ['once', 'month'];
+      $field['recurring_times'] = max(0, min(999, (int) ($in['recurring_times'] ?? 0)));
+      $field['display'] = ($in['display'] ?? 'buttons') === 'select' ? 'select' : 'buttons';
+      if (!in_array($field['default'], $field['frequencies'], TRUE)) {
+        $field['default'] = $field['frequencies'][0];
+      }
+    }
+    if ($type === 'payment') {
+      $field['apple_pay'] = !array_key_exists('apple_pay', $in) || !empty($in['apple_pay']);
+      $field['help'] = self::text($in['help'] ?? '', 2000);
+    }
+    if ($type === 'total') {
+      $field['help'] = self::text($in['help'] ?? '', 2000);
     }
     $conditions = self::conditions($in['conditions'] ?? NULL);
     if ($conditions) {

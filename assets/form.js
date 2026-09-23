@@ -41,6 +41,14 @@
   var turnstileWidget = null;
   var turnstileToken = '';
   var submitting = false;
+  var submitLabel = config.form.submitLabel || 'Submit';
+  // One key per page view, sent with every attempt: a resubmit after a
+  // declined card or a lost answer continues the same entry on the server.
+  var submissionKey = (function () {
+    var bytes = new Uint8Array(16);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    return Array.prototype.map.call(bytes, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }());
 
   // ---------------------------------------------------------------- helpers
 
@@ -549,6 +557,10 @@
       }
     }
     updateVisibility();
+    // The "correct the highlighted fields" banner goes once nothing is highlighted.
+    if (messageEl && !messageEl.hidden && messageEl.getAttribute('data-kind') === 'fix' && !formEl.querySelector('.ef-has-error')) {
+      setMessage('');
+    }
     var current = values();
     EF.onChange.forEach(function (fn) { fn(current, api); });
   }
@@ -619,7 +631,8 @@
 
   // --------------------------------------------------------------- submit
 
-  function setMessage(text, kind) {
+  function setMessage(text, kind, tag) {
+    messageEl.setAttribute('data-kind', tag || '');
     messageEl.textContent = text || '';
     messageEl.className = 'ef-message' + (kind ? ' ef-message-' + kind : '');
     messageEl.hidden = !text;
@@ -628,7 +641,7 @@
   function setBusy(busy) {
     submitting = busy;
     submitButton.disabled = busy;
-    submitButton.textContent = busy ? t('sending', 'Sending…') : (config.form.submitLabel || 'Submit');
+    submitButton.textContent = busy ? t('sending', 'Sending…') : submitLabel;
     formEl.classList.toggle('ef-busy', busy);
   }
 
@@ -683,7 +696,7 @@
         if (order[i] !== currentPage) {
           goTo(order[i]);
         }
-        setMessage(t('fixErrors', 'Please correct the highlighted fields.'), 'error');
+        setMessage(t('fixErrors', 'Please correct the highlighted fields.'), 'error', 'fix');
         requestScroll();
         return;
       }
@@ -696,7 +709,8 @@
       values: visibleValues(),
       hp: formEl.querySelector('.ef-hp input').value,
       turnstile: turnstileToken,
-      source_url: config.sourceUrl || (config.embedded ? '' : window.location.href)
+      source_url: config.sourceUrl || (config.embedded ? '' : window.location.href),
+      submission_key: submissionKey
     };
 
     EF.beforeSubmit.reduce(function (chain, fn) {
@@ -770,6 +784,20 @@
     inputId: inputId,
     describedBy: describedBy,
     refresh: function () { updateVisibility(); },
+    submit: function () {
+      if (formEl.requestSubmit) {
+        formEl.requestSubmit(submitButton);
+      } else {
+        submitButton.click();
+      }
+    },
+    setSubmitLabel: function (label) {
+      submitLabel = label || config.form.submitLabel || 'Submit';
+      if (!submitting && submitButton) {
+        submitButton.textContent = submitLabel;
+      }
+    },
+    isSubmitting: function () { return submitting; },
     requestScroll: requestScroll
   };
   EF.api = api;
@@ -831,6 +859,8 @@
     goToFirst();
     mountTurnstile();
     EF.ready.forEach(function (fn) { fn(api); });
+    var initial = values();
+    EF.onChange.forEach(function (fn) { fn(initial, api); });
   }
 
   function goToFirst() {

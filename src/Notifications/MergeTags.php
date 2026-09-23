@@ -49,8 +49,14 @@ final class MergeTags {
       'source_url' => (string) ($context['entry']['source_url'] ?? ''),
     ], $context['extra'] ?? []);
 
-    return preg_replace_callback('/\{([a-z_]+)(?::([a-z0-9_]+))?(?::([a-z0-9]+))?\}/', static function (array $m) use ($schema, $values, $simple, $escape, $html): string {
+    $htmlTags = $context['extra_html'] ?? [];
+
+    return preg_replace_callback('/\{([a-z_]+)(?::([a-z0-9_]+))?(?::([a-z0-9]+))?\}/', static function (array $m) use ($schema, $values, $simple, $escape, $html, $htmlTags): string {
       $tag = $m[1];
+      if (array_key_exists($tag, $htmlTags) && !isset($m[2])) {
+        // Built as HTML by this plugin; in text contexts only its words.
+        return $html ? (string) $htmlTags[$tag] : $escape(trim(preg_replace('/\s+/', ' ', strip_tags(str_replace(['</td>', '</tr>', '</p>'], [' ', "\n", "\n"], (string) $htmlTags[$tag]))) ?? ''));
+      }
       if ($tag === 'all_fields') {
         return $html ? self::allFields($schema, $values, TRUE) : $escape(self::allFields($schema, $values, FALSE));
       }

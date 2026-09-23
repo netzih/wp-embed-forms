@@ -68,6 +68,16 @@ final class Validator {
         return $out;
 
       default:
+        if ($field['type'] === 'amount' && ($field['amount_mode'] ?? '') === 'fixed') {
+          return (string) $field['fixed_amount'];
+        }
+        if ($field['type'] === 'product' && empty($field['quantity'])) {
+          return '1';
+        }
+        if ($field['type'] === 'amount') {
+          $line = self::line($raw, 20);
+          return $line === '' ? '' : (\EmbedForms\Payments\Money::normalize($line) ?? $line);
+        }
         if ($field['type'] === 'textarea') {
           return self::multiline($raw, (int) ($field['max'] ?? self::TEXTAREA_MAX));
         }
@@ -87,10 +97,26 @@ final class Validator {
       }
       return NULL;
     }
+    if ($type === 'amount') {
+      return self::checkAmount($field, (string) $value);
+    }
+    if ($type === 'product') {
+      if (!preg_match('/^\d{1,4}$/', (string) $value) && (string) $value !== '') {
+        return __('Please enter a quantity.', 'embed-forms');
+      }
+      $quantity = (int) $value;
+      if ($quantity > (int) ($field['max_quantity'] ?? 1)) {
+        return sprintf(__('Please enter %s or less.', 'embed-forms'), $field['max_quantity']);
+      }
+      return !empty($field['required']) && $quantity < 1 ? __('Please choose at least one.', 'embed-forms') : NULL;
+    }
     if (self::isEmpty($value)) {
       return !empty($field['required']) ? __('This field is required.', 'embed-forms') : NULL;
     }
     switch ($type) {
+      case 'frequency':
+        return in_array($value, $field['frequencies'] ?? [], TRUE) ? NULL : __('Please choose one of the options.', 'embed-forms');
+
       case 'email':
         return filter_var($value, FILTER_VALIDATE_EMAIL) ? NULL : __('Please enter a valid email address.', 'embed-forms');
 
@@ -127,6 +153,36 @@ final class Validator {
           }
         }
         return NULL;
+    }
+    return NULL;
+  }
+
+  private static function checkAmount(array $field, string $value): ?string {
+    if ($value === '' || $value === '0.00') {
+      return !empty($field['required']) ? __('Please choose or enter an amount.', 'embed-forms') : NULL;
+    }
+    $cents = \EmbedForms\Payments\Money::toCents($value);
+    if ($cents === NULL) {
+      return __('Please enter an amount, like 25 or 25.50.', 'embed-forms');
+    }
+    $mode = $field['amount_mode'] ?? 'choices';
+    if ($mode === 'fixed') {
+      return NULL;
+    }
+    $choices = array_column($field['amounts'] ?? [], 'amount');
+    $isChoice = in_array($value, $choices, TRUE);
+    if ($mode === 'choices' && !$isChoice && empty($field['allow_other'])) {
+      return __('Please choose one of the amounts.', 'embed-forms');
+    }
+    if (!$isChoice) {
+      $min = \EmbedForms\Payments\Money::toCents($field['min'] ?? '');
+      $max = \EmbedForms\Payments\Money::toCents($field['max'] ?? '');
+      if ($min !== NULL && $cents < $min) {
+        return sprintf(__('The minimum amount is %s.', 'embed-forms'), \EmbedForms\Payments\Money::format($min));
+      }
+      if ($max !== NULL && $max > 0 && $cents > $max) {
+        return sprintf(__('The maximum amount is %s.', 'embed-forms'), \EmbedForms\Payments\Money::format($max));
+      }
     }
     return NULL;
   }

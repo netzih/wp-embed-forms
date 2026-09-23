@@ -25,3 +25,12 @@
 .ef-answers th { width: 30%; font-weight: 600; vertical-align: top; }
 .ef-empty { color: #8c8f94; }
 .ef-ua { word-break: break-word; font-size: 12px; }
+.ef-subhead { margin-top: 24px; font-size: 16px; }
+.ef-payments td { vertical-align: top; }
+.ef-refund-form { display: flex; gap: 4px; }
+.ef-notes { background: #fff; border: 1px solid #dcdcde; padding: 8px 12px; margin: 0; }
+.ef-notes li { margin: 6px 0; }
+.ef-notes time { color: #646970; font-size: 12px; margin-right: 6px; }
+.ef-status-active, .ef-status-completed { background: #d1f0d5; color: #0a4b1a; }
+.ef-status-failing { background: #fcf0c3; color: #614200; }
+.ef-status-cancelled { background: #e0e0e0; color: #3c434a; }

@@ -9,7 +9,7 @@ namespace EmbedForms\Db;
  */
 final class Schema {
 
-  public const VERSION = '1';
+  public const VERSION = '2';
 
   private const OPTION = 'embed_forms_db_version';
 
@@ -29,6 +29,7 @@ final class Schema {
     $entries = Db::table('entries');
     $payments = Db::table('payments');
     $subscriptions = Db::table('subscriptions');
+    $notes = Db::table('notes');
 
     $sql = [];
     $sql[] = "CREATE TABLE {$forms} (
@@ -68,21 +69,25 @@ final class Schema {
   ip varchar(45) NOT NULL DEFAULT '',
   user_agent varchar(255) NOT NULL DEFAULT '',
   source_url text NULL,
+  submission_key varchar(64) NOT NULL DEFAULT '',
   is_read tinyint(1) NOT NULL DEFAULT 0,
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),
   KEY form_status (form_id,status),
   KEY created_at (created_at),
-  KEY payer_email (payer_email)
+  KEY payer_email (payer_email),
+  KEY submission (form_id,submission_key)
 ) {$charset};";
     $sql[] = "CREATE TABLE {$payments} (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   entry_id bigint(20) unsigned NOT NULL,
   subscription_id bigint(20) unsigned DEFAULT NULL,
+  parent_id bigint(20) unsigned DEFAULT NULL,
   kind varchar(20) NOT NULL DEFAULT 'charge',
   status varchar(20) NOT NULL DEFAULT 'pending',
   amount decimal(12,2) NOT NULL DEFAULT 0,
+  refunded_amount decimal(12,2) NOT NULL DEFAULT 0,
   currency char(3) NOT NULL DEFAULT 'USD',
   mode varchar(10) NOT NULL DEFAULT '',
   method varchar(20) NOT NULL DEFAULT '',
@@ -120,12 +125,25 @@ final class Schema {
   schedule_start datetime NOT NULL,
   installment_index int(10) unsigned NOT NULL DEFAULT 1,
   next_charge datetime DEFAULT NULL,
+  last_error text NULL,
+  cancelled_at datetime DEFAULT NULL,
   marker_json text NULL,
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),
   KEY entry_id (entry_id),
   KEY due (status,next_charge)
+) {$charset};";
+
+    $sql[] = "CREATE TABLE {$notes} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  entry_id bigint(20) unsigned NOT NULL,
+  subscription_id bigint(20) unsigned DEFAULT NULL,
+  user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  content text NOT NULL,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  KEY entry_id (entry_id)
 ) {$charset};";
 
     // dbDelta works on the global connection; point it at ours for a
