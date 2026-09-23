@@ -3,8 +3,9 @@
 namespace EmbedForms\Db;
 
 /**
- * Recurring payments charged by this site against a USAePay saved card.
- * Nothing is scheduled at USAePay.
+ * Recurring payments charged by this site against a saved card (a USAePay
+ * saved card, or a Stripe customer and payment method). Nothing is
+ * scheduled at the processor.
  */
 final class Subscriptions {
 
@@ -26,15 +27,17 @@ final class Subscriptions {
   }
 
   /**
-   * Subscriptions whose next charge is due, oldest first.
+   * Subscriptions of one processor whose next charge is due, oldest first.
+   * Rows from before processors were recorded (gateway '') are USAePay's.
    *
    * @return array[]
    */
-  public static function due(string $mode, string $now, int $limit = 50): array {
+  public static function due(string $gateway, string $mode, string $now, int $limit = 50): array {
     $db = Db::wpdb();
+    $gateways = $gateway === 'usaepay' ? ['usaepay', ''] : [$gateway, $gateway];
     $rows = $db->get_results($db->prepare(
-      'SELECT * FROM ' . Db::table('subscriptions') . " WHERE status IN ('active', 'failing') AND mode = %s AND next_charge IS NOT NULL AND next_charge <= %s ORDER BY next_charge ASC LIMIT %d",
-      $mode, $now, $limit
+      'SELECT * FROM ' . Db::table('subscriptions') . " WHERE status IN ('active', 'failing') AND gateway IN (%s, %s) AND mode = %s AND next_charge IS NOT NULL AND next_charge <= %s ORDER BY next_charge ASC LIMIT %d",
+      $gateways[0], $gateways[1], $mode, $now, $limit
     ), ARRAY_A);
     return array_map([self::class, 'hydrate'], (array) $rows);
   }
@@ -108,6 +111,8 @@ final class Subscriptions {
     }
     $marker = !empty($row['marker_json']) ? json_decode((string) $row['marker_json'], TRUE) : NULL;
     $row['marker'] = is_array($marker) ? $marker : NULL;
+    $row['gateway'] = ($row['gateway'] ?? '') ?: 'usaepay';
+    $row['account'] = (string) ($row['account'] ?? '');
     return $row;
   }
 

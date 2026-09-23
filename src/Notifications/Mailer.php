@@ -23,14 +23,14 @@ final class Mailer {
         continue;
       }
       $replyTo = self::addresses(MergeTags::replace($notification['reply_to'], $context, FALSE));
-      self::send($to, MergeTags::replace($notification['subject'], $context, FALSE), MergeTags::replace(self::bodyHtml($notification['body']), $context, TRUE), $replyTo[0] ?? '');
+      self::send($to, MergeTags::replace($notification['subject'], $context, FALSE), MergeTags::replace(self::bodyHtml($notification['body']), $context, TRUE), $replyTo[0] ?? '', $settings);
     }
 
     $auto = $settings['autoresponder'];
     if (!empty($auto['enabled']) && $auto['to_field'] !== '') {
       $email = (string) ($entry['data'][$auto['to_field']] ?? '');
       if (is_email($email)) {
-        self::send([$email], MergeTags::replace($auto['subject'], $context, FALSE), MergeTags::replace(self::bodyHtml($auto['body']), $context, TRUE));
+        self::send([$email], MergeTags::replace($auto['subject'], $context, FALSE), MergeTags::replace(self::bodyHtml($auto['body']), $context, TRUE), '', $settings);
       }
     }
   }
@@ -51,19 +51,48 @@ final class Mailer {
 
   /**
    * @param string[] $to
+   * @param array $formSettings
+   *   The sending form's settings: its from_name and from_email, when set,
+   *   replace the ones under Embed Forms > Settings.
    */
-  public static function send(array $to, string $subject, string $html, string $replyTo = ''): bool {
+  public static function send(array $to, string $subject, string $html, string $replyTo = '', array $formSettings = []): bool {
     $headers = ['Content-Type: text/html; charset=UTF-8'];
-    $fromEmail = (string) Settings::get('from_email');
+    [$fromName, $fromEmail] = self::sender($formSettings);
     if ($fromEmail !== '') {
-      $fromName = (string) Settings::get('from_name');
       $headers[] = 'From: ' . ($fromName !== '' ? self::headerText($fromName) . ' <' . $fromEmail . '>' : $fromEmail);
     }
     if ($replyTo !== '') {
       $headers[] = 'Reply-To: ' . $replyTo;
     }
     $body = '<!doctype html><html><body style="font-family:sans-serif;font-size:14px;line-height:1.5;color:#1d2327">' . $html . '</body></html>';
-    return wp_mail($to, self::headerText($subject), $body, $headers);
+    if ($fromEmail !== '' || $fromName === '') {
+      return wp_mail($to, self::headerText($subject), $body, $headers);
+    }
+    // A name without an address: keep the mailer's address, change the name.
+    $name = static fn() => self::headerText($fromName);
+    add_filter('wp_mail_from_name', $name, 20);
+    try {
+      return wp_mail($to, self::headerText($subject), $body, $headers);
+    }
+    finally {
+      remove_filter('wp_mail_from_name', $name, 20);
+    }
+  }
+
+  /**
+   * The sender of a form's emails: the form's own address, else the site
+   * setting; each part falls back on its own, so a form can change just the
+   * name. An empty address leaves the address to the mailer.
+   *
+   * @return array{0: string, 1: string}
+   *   Name and address.
+   */
+  public static function sender(array $formSettings = []): array {
+    $email = trim((string) ($formSettings['from_email'] ?? ''));
+    $email = $email !== '' && is_email($email) ? $email : (string) Settings::get('from_email');
+    $name = trim((string) ($formSettings['from_name'] ?? ''));
+    $name = $name !== '' ? $name : (string) Settings::get('from_name');
+    return [$name, $email];
   }
 
   /**

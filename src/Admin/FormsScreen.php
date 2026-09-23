@@ -52,7 +52,7 @@ final class FormsScreen {
       <hr class="wp-header-end">
       <?php Menu::renderFlash(); ?>
       <?php if (!Plugin::paymentsAvailable()) : ?>
-        <div class="notice notice-info"><p><?php esc_html_e('Payment fields need the USAePay Payments plugin. Forms without payments work without it.', 'embed-forms'); ?></p></div>
+        <div class="notice notice-info"><p><?php esc_html_e('Payment fields need the USAePay Payments plugin or a Stripe account (Embed Forms > Settings). Forms without payments work without either.', 'embed-forms'); ?></p></div>
       <?php endif; ?>
       <?php $table->views(); ?>
       <form method="get">
@@ -161,6 +161,19 @@ final class FormsScreen {
               <th scope="row"><label for="ef-confirmation-url"><?php esc_html_e('Page address', 'embed-forms'); ?></label></th>
               <td><input type="url" id="ef-confirmation-url" name="settings[confirmation][url]" value="<?php echo esc_attr($s['confirmation']['url']); ?>" class="large-text" placeholder="https://">
                 <p class="description"><?php esc_html_e('Used when "Go to a web page" is chosen. Merge tags are URL-encoded. In an embedded form the whole page goes there, not only the frame.', 'embed-forms'); ?></p></td>
+            </tr>
+          </table>
+
+          <h2><?php esc_html_e('Email sender', 'embed-forms'); ?></h2>
+          <table class="form-table" role="presentation">
+            <tr>
+              <th scope="row"><label for="ef-from-name"><?php esc_html_e('From name', 'embed-forms'); ?></label></th>
+              <td><input type="text" id="ef-from-name" name="settings[from_name]" value="<?php echo esc_attr($s['from_name']); ?>" class="regular-text" placeholder="<?php echo esc_attr((string) \EmbedForms\Settings::get('from_name')); ?>"></td>
+            </tr>
+            <tr>
+              <th scope="row"><label for="ef-from-email"><?php esc_html_e('From address', 'embed-forms'); ?></label></th>
+              <td><input type="email" id="ef-from-email" name="settings[from_email]" value="<?php echo esc_attr($s['from_email']); ?>" class="regular-text" placeholder="<?php echo esc_attr((string) \EmbedForms\Settings::get('from_email')); ?>">
+                <p class="description"><?php esc_html_e('For every email this form sends: the notification, the confirmation to the person who submitted, and recurring payment receipts. Leave empty to use Embed Forms > Settings. Use an address your mail service is allowed to send from (for example, on a domain set up in Post SMTP), or the email may land in spam.', 'embed-forms'); ?></p></td>
             </tr>
           </table>
 

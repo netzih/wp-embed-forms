@@ -480,9 +480,10 @@
       add(h(C.SelectControl, { key: 'display', label: __('Show as', 'embed-forms'), value: field.display || 'buttons', options: [{ value: 'buttons', label: __('Buttons', 'embed-forms') }, { value: 'select', label: __('Dropdown', 'embed-forms') }], onChange: function (v) { set({ display: v }); } }));
     }
     if (field.type === 'payment') {
-      add(h(C.ToggleControl, { key: 'apple', label: __('Offer Apple Pay for one-time payments', 'embed-forms'), checked: field.apple_pay !== false, onChange: function (v) { set({ apple_pay: v }); } }));
+      add(h(C.ToggleControl, { key: 'apple', label: __('Offer Apple Pay for one-time payments (USAePay only)', 'embed-forms'), checked: field.apple_pay !== false, onChange: function (v) { set({ apple_pay: v }); } }));
+      add(h('p', { key: 'processor', className: 'description' }, __('Choose USAePay or Stripe, and the account, under Settings > Payments (after saving the form with this field).', 'embed-forms')));
       if (!config.paymentsAvailable) {
-        add(h(C.Notice, { key: 'nopay', status: 'warning', isDismissible: false }, __('USAePay Payments is not active, so this form cannot take payments yet.', 'embed-forms')));
+        add(h(C.Notice, { key: 'nopay', status: 'warning', isDismissible: false }, __('No payment processor is set up (activate USAePay Payments or add a Stripe account under Embed Forms > Settings), so this form cannot take payments yet.', 'embed-forms')));
       }
     }
     if (input && ['name', 'address', 'hidden', 'amount', 'product', 'frequency'].indexOf(field.type) === -1 || field.type === 'hidden') {

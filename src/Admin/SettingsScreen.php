@@ -2,11 +2,11 @@
 
 namespace EmbedForms\Admin;
 
-use EmbedForms\Plugin;
 use EmbedForms\Settings;
 
 /**
- * Embed Forms > Settings: Turnstile keys, email sender, limits.
+ * Embed Forms > Settings: Turnstile keys, email sender, limits, Stripe
+ * accounts.
  */
 final class SettingsScreen {
 
@@ -69,16 +69,70 @@ final class SettingsScreen {
           </tr>
         </table>
 
-        <h2><?php esc_html_e('Payments', 'embed-forms'); ?></h2>
-        <?php if (Plugin::paymentsAvailable()) : ?>
-          <p><?php printf(esc_html__('USAePay credentials, sandbox or live mode and Apple Pay are managed under %s.', 'embed-forms'), '<a href="' . esc_url(admin_url('options-general.php?page=usaepay-payments')) . '">' . esc_html__('Settings > USAePay', 'embed-forms') . '</a>'); ?></p>
+        <h2><?php esc_html_e('USAePay', 'embed-forms'); ?></h2>
+        <?php if (\EmbedForms\Payments\Processor::usaepayActive()) : ?>
+          <p><?php printf(esc_html__('USAePay accounts, sandbox or live mode and Apple Pay are managed under %s. Each form chooses its account under Settings > Payments.', 'embed-forms'), '<a href="' . esc_url(admin_url('options-general.php?page=usaepay-payments')) . '">' . esc_html__('Settings > USAePay', 'embed-forms') . '</a>'); ?></p>
         <?php else : ?>
-          <p><?php esc_html_e('Install and activate the USAePay Payments plugin to add payment fields to forms.', 'embed-forms'); ?></p>
+          <p><?php esc_html_e('Install and activate the USAePay Payments plugin for forms that take payments through USAePay.', 'embed-forms'); ?></p>
         <?php endif; ?>
+
+        <?php $this->renderStripe($s, $name); ?>
         <?php submit_button(); ?>
       </form>
     </div>
     <?php
+  }
+
+  private function renderStripe(array $s, string $name): void {
+    $rows = array_values(Settings::stripeAccounts());
+    $rows[] = NULL;
+    ?>
+    <h2><?php esc_html_e('Stripe', 'embed-forms'); ?></h2>
+    <p class="description"><?php esc_html_e('Stripe accounts forms can take payments through. Each form chooses its processor and account under Settings > Payments. Keys are under Developers > API keys in the Stripe dashboard; card details are entered in fields hosted by Stripe and never reach this site. Recurring payments are charged by this site from the card saved on a Stripe customer; nothing is scheduled in Stripe.', 'embed-forms'); ?></p>
+    <table class="form-table" role="presentation">
+      <tr>
+        <th scope="row"><?php esc_html_e('Mode', 'embed-forms'); ?></th>
+        <td>
+          <label><input type="radio" name="<?php echo esc_attr($name); ?>[stripe_mode]" value="test" <?php checked($s['stripe_mode'] !== 'live'); ?>> <?php esc_html_e('Test (test keys, no real money)', 'embed-forms'); ?></label><br>
+          <label><input type="radio" name="<?php echo esc_attr($name); ?>[stripe_mode]" value="live" <?php checked($s['stripe_mode'], 'live'); ?>> <?php esc_html_e('Live', 'embed-forms'); ?></label>
+          <p class="description"><?php esc_html_e('For every Stripe account. Recurring payments are charged only while the mode they were made in is selected.', 'embed-forms'); ?></p>
+        </td>
+      </tr>
+    </table>
+    <?php foreach ($rows as $i => $account) :
+      $field = static fn(string $key) => esc_attr($name . '[stripe_accounts][' . $i . '][' . $key . ']');
+      ?>
+      <table class="form-table" role="presentation" style="border-top:1px solid #c3c4c7">
+        <tr>
+          <th scope="row"><label for="ef-stripe-<?php echo (int) $i; ?>"><?php echo $account ? esc_html__('Account name', 'embed-forms') : esc_html__('Add a Stripe account', 'embed-forms'); ?></label></th>
+          <td>
+            <input type="text" id="ef-stripe-<?php echo (int) $i; ?>" name="<?php echo $field('label'); ?>" value="<?php echo esc_attr($account['label'] ?? ''); ?>" class="regular-text" placeholder="<?php echo $account ? '' : esc_attr__('e.g. Main Stripe account', 'embed-forms'); ?>">
+            <?php if ($account) : ?>
+              <input type="hidden" name="<?php echo $field('id'); ?>" value="<?php echo esc_attr($account['id']); ?>">
+              <code style="margin-left:8px"><?php echo esc_html($account['id']); ?></code>
+              <label style="margin-left:12px"><input type="checkbox" name="<?php echo $field('remove'); ?>" value="1"> <?php esc_html_e('Remove this account', 'embed-forms'); ?></label>
+              <p class="description"><?php esc_html_e('Do not remove an account that still has active recurring payments or payments you may refund.', 'embed-forms'); ?></p>
+            <?php else : ?>
+              <p class="description"><?php esc_html_e('Fill in a name and the keys, then save. Leave blank to add nothing.', 'embed-forms'); ?></p>
+            <?php endif; ?>
+          </td>
+        </tr>
+        <?php foreach (['test' => __('Test keys', 'embed-forms'), 'live' => __('Live keys', 'embed-forms')] as $mode => $modeLabel) :
+          $secret = (string) ($account[$mode . '_secret_key'] ?? '');
+          ?>
+          <tr>
+            <th scope="row"><?php echo esc_html($modeLabel); ?></th>
+            <td>
+              <p><label><?php esc_html_e('Publishable key', 'embed-forms'); ?><br><input type="text" class="regular-text code" autocomplete="off" name="<?php echo $field($mode . '_publishable_key'); ?>" value="<?php echo esc_attr($account[$mode . '_publishable_key'] ?? ''); ?>" placeholder="<?php echo esc_attr('pk_' . $mode . '_…'); ?>"></label></p>
+              <p><label><?php esc_html_e('Secret key', 'embed-forms'); ?><br><input type="password" class="regular-text code" autocomplete="new-password" name="<?php echo $field($mode . '_secret_key'); ?>" value="" placeholder="<?php echo $secret !== '' ? esc_attr__('Saved (leave empty to keep)', 'embed-forms') : esc_attr('sk_' . $mode . '_… / rk_' . $mode . '_…'); ?>"></label>
+                <?php if ($secret !== '') : ?>
+                  <label style="margin-left:8px"><input type="checkbox" name="<?php echo $field($mode . '_clear_secret'); ?>" value="1"> <?php esc_html_e('Remove the saved secret key', 'embed-forms'); ?></label>
+                <?php endif; ?></p>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </table>
+    <?php endforeach;
   }
 
 }

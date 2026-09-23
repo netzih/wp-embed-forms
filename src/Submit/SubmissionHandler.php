@@ -90,7 +90,7 @@ final class SubmissionHandler {
     }
 
     if ($needsPayment) {
-      if (!\EmbedForms\Plugin::paymentsAvailable()) {
+      if (!\EmbedForms\Payments\Processor::checkoutReady($form)) {
         return self::fail(503, __('This form cannot take payments right now. Please contact us.', 'embed-forms'));
       }
       if (RateLimit::exceeded('declined', $ip, (int) Settings::get('failed_payment_limit'), HOUR_IN_SECONDS)) {
@@ -127,6 +127,13 @@ final class SubmissionHandler {
         Entries::setStatus($entryId, $paid['unresolved'] ? 'pending_payment' : 'failed');
         if (!empty($paid['declined'])) {
           RateLimit::hit('declined', $ip, PHP_INT_MAX, HOUR_IN_SECONDS);
+        }
+        if (!empty($paid['action'])) {
+          // The card needs the bank's check in the browser, then the form
+          // is submitted again with the same submission key.
+          $failed = self::fail($paid['status'], $paid['message'], [], 'payment_action');
+          $failed['body']['action'] = $paid['action'];
+          return $failed;
         }
         return self::fail($paid['status'], $paid['message'], [], 'payment');
       }

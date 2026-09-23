@@ -286,6 +286,8 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 .ef-card-element:focus-within { border-color: var(--ef-focus); background-color: #fff; box-shadow: 0 0 0 4px var(--ef-ring); }
 /* Pay.js frames itself at 100% of this box, one 46px row. */
 .ef-card-element iframe { display: block; width: 100% !important; height: 100%; }
+/* Stripe's card element sizes its own frame from the 46px line height. */
+.ef-card-element.ef-card-stripe { padding: 0 14px; }
 .ef-payment .ef-error { margin: 0; }
 .ef-secure { margin: 0; font-size: 12px; color: var(--ef-subtle); }
 .ef-sandbox-note { margin: 0; padding: 8px 12px; background: #fcf6e3; border-radius: 8px; font-size: 13px; color: #614b12; }

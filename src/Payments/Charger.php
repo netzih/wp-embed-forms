@@ -13,9 +13,9 @@ use Usaepay\WordPress\Reconcile;
 
 /**
  * Every request to USAePay goes through run(): a USAePay Payments client
- * for the given mode and Reconcile::once(), so each charge or refund is
- * sent at most once, with every failure turned into one outcome and
- * payer-safe wording.
+ * for the given mode and account and Reconcile::once(), so each charge or
+ * refund is sent at most once, with every failure turned into one outcome
+ * and payer-safe wording.
  */
 final class Charger {
 
@@ -29,16 +29,27 @@ final class Charger {
     return \Usaepay\WordPress\Plugin::instance()->settings()->mode();
   }
 
-  public static function client(?string $mode = NULL): GatewayClient {
+  /**
+   * @param string $account
+   *   An account id from Settings > USAePay; '' or 'default' for the
+   *   default account.
+   */
+  public static function client(?string $mode = NULL, string $account = ''): GatewayClient {
     /**
      * Replace the USAePay client, e.g. with one on a fake transport in a
      * test site. Return NULL to use the real one.
      */
-    $client = apply_filters('embed_forms_gateway_client', NULL, $mode ?? self::mode());
+    $client = apply_filters('embed_forms_gateway_client', NULL, $mode ?? self::mode(), $account);
     if ($client instanceof GatewayClient) {
       return $client;
     }
-    return self::gateway()->client(self::INTEGRATION, $mode);
+    if (Processor::isDefaultAccount($account)) {
+      return self::gateway()->client(self::INTEGRATION, $mode);
+    }
+    if (!Processor::usaepayHasAccounts()) {
+      throw new GatewayException(__('This form uses an additional USAePay account, which needs a newer version of USAePay Payments.', 'embed-forms'));
+    }
+    return self::gateway()->client(self::INTEGRATION, $mode, $account);
   }
 
   /**
@@ -50,10 +61,10 @@ final class Charger {
    *   retry) or 'unresolved' (a request may have gone through; the marker
    *   stays and the next attempt looks it up first).
    */
-  public static function run(string $mode, callable $read, callable $write, string $orderId, ?string $amount, callable $call, array $types = GatewayClient::TYPES_CHARGE): array {
+  public static function run(string $mode, callable $read, callable $write, string $orderId, ?string $amount, callable $call, array $types = GatewayClient::TYPES_CHARGE, string $account = ''): array {
     $out = ['outcome' => 'failed', 'response' => [], 'payer' => '', 'gateway' => '', 'reconciled' => FALSE, 'amount' => $amount];
     try {
-      $client = self::client($mode);
+      $client = self::client($mode, $account);
     }
     catch (GatewayException | \InvalidArgumentException $e) {
       return ['payer' => __('The payment system is not configured correctly, so no charge was made. Please contact us.', 'embed-forms'), 'gateway' => $e->getMessage()] + $out;
@@ -101,7 +112,23 @@ final class Charger {
     ];
   }
 
-  public static function note(array $response, string $mode): string {
+  /**
+   * run()'s result with the row columns, saved card and note, in the shape
+   * Stripe\Gateway returns.
+   */
+  public static function withColumns(array $result, string $mode, string $account): array {
+    $response = $result['response'];
+    $approved = $result['outcome'] === 'approved';
+    return $result + [
+      'columns' => $approved ? self::recordColumns($response) : ['transaction_key' => '', 'refnum' => '', 'auth_code' => '', 'card_brand' => '', 'card_last4' => ''],
+      'card_reference' => trim((string) ($response['savedcard']['key'] ?? '')),
+      'customer_reference' => '',
+      'client_secret' => '',
+      'note' => $approved ? self::note($response, $mode, $account) : '',
+    ];
+  }
+
+  public static function note(array $response, string $mode, string $account = ''): string {
     $parts = [sprintf(__('USAePay reference %s', 'embed-forms'), Gateway::transactionReference($response))];
     if (!empty($response['authcode'])) {
       $parts[] = sprintf(__('auth code %s', 'embed-forms'), $response['authcode']);
@@ -115,6 +142,9 @@ final class Charger {
     $card = Gateway::card($response);
     if (!empty($card['last4'])) {
       $parts[] = sprintf(__('%1$s ending in %2$s', 'embed-forms'), $card['brand'] ?: __('Card', 'embed-forms'), $card['last4']);
+    }
+    if (!Processor::isDefaultAccount($account)) {
+      $parts[] = sprintf(__('account %s', 'embed-forms'), Processor::usaepayHasAccounts() ? \Usaepay\WordPress\Plugin::instance()->settings()->accountLabel($account) : $account);
     }
     if ($mode === 'sandbox') {
       $parts[] = __('SANDBOX', 'embed-forms');

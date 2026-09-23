@@ -28,7 +28,7 @@ final class SubscriptionsScreen {
       <a class="page-title-action" href="<?php echo esc_url(Menu::actionUrl('embed_forms_run_renewals')); ?>"><?php esc_html_e('Run renewals now', 'embed-forms'); ?></a>
       <hr class="wp-header-end">
       <?php Menu::renderFlash(); ?>
-      <p class="description"><?php printf(esc_html__('Recurring payments are charged by this site every hour when due, against the card USAePay saved at signup. A declined payment is retried every %1$d days, %2$d attempts in all, then cancelled.', 'embed-forms'), Schedule::RETRY_DAYS, Schedule::MAX_ATTEMPTS); ?></p>
+      <p class="description"><?php printf(esc_html__('Recurring payments are charged by this site every hour when due, against the card saved at signup (at USAePay or Stripe, with the account the payment was made with). A declined payment is retried every %1$d days, %2$d attempts in all, then cancelled.', 'embed-forms'), Schedule::RETRY_DAYS, Schedule::MAX_ATTEMPTS); ?></p>
       <ul class="subsubsub">
         <?php foreach (['' => __('All', 'embed-forms'), 'active' => __('Active', 'embed-forms'), 'failing' => __('Failing', 'embed-forms'), 'cancelled' => __('Cancelled', 'embed-forms'), 'completed' => __('Completed', 'embed-forms')] as $key => $label) : ?>
           <li><a href="<?php echo esc_url(add_query_arg(['page' => Menu::PAGE_SUBSCRIPTIONS, 'status' => $key ?: NULL], admin_url('admin.php'))); ?>"<?php echo $status === $key ? ' class="current"' : ''; ?>><?php echo esc_html($label); ?></a> |</li>

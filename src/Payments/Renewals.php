@@ -9,12 +9,11 @@ use EmbedForms\Db\Payments;
 use EmbedForms\Db\Subscriptions;
 use EmbedForms\Notifications\Mailer;
 use EmbedForms\Schema\Fields;
-use Usaepay\WordPress\Gateway;
-use Usaepay\WordPress\Lock;
 
 /**
  * The hourly worker that charges due subscriptions against their saved
- * card. Installment dates stay anchored to the signup day; a declined
+ * card, at the processor and account each subscription was made with (in
+ * that processor's current live/sandbox mode). Installment dates stay anchored to the signup day; a declined
  * installment is retried every RETRY_DAYS, MAX_ATTEMPTS attempts in all,
  * then the subscription is cancelled.
  *
@@ -34,17 +33,22 @@ final class Renewals {
    */
   public function run(?\DateTimeImmutable $now = NULL): array {
     $summary = ['due' => 0, 'charged' => 0, 'recovered' => 0, 'declined' => 0, 'cancelled' => 0, 'completed' => 0, 'unresolved' => 0, 'skipped' => 0];
-    if (!\EmbedForms\Plugin::paymentsAvailable()) {
+    $now = $now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+    $due = [];
+    if (Processor::usaepayActive()) {
+      $due = array_merge($due, Subscriptions::due(Processor::USAEPAY, Processor::mode(Processor::USAEPAY), $now->format('Y-m-d H:i:s')));
+    }
+    $due = array_merge($due, Subscriptions::due(Processor::STRIPE, Processor::mode(Processor::STRIPE), $now->format('Y-m-d H:i:s')));
+    if (!$due) {
       return $summary;
     }
-    $now = $now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     $runLock = Lock::acquire('ef_renewals', self::LOCK_TTL);
     if ($runLock === NULL) {
       $summary['skipped']++;
       return $summary;
     }
     try {
-      foreach (Subscriptions::due(Charger::mode(), $now->format('Y-m-d H:i:s')) as $subscription) {
+      foreach ($due as $subscription) {
         $summary['due']++;
         $lock = Lock::acquire('ef_sub_' . $subscription['id'], self::LOCK_TTL);
         if ($lock === NULL) {
@@ -92,17 +96,27 @@ final class Renewals {
     $start = Schedule::utc($sub['schedule_start']);
     $scheduled = Schedule::installmentDate($start, $sub['interval_length'], $sub['interval_unit'], $sub['installment_index']);
     $attempt = $sub['failed_attempts'];
-    $orderId = Gateway::orderId(Schedule::orderId($subscriptionId, $scheduled, $attempt));
+    $orderId = Processor::orderId(Schedule::orderId($subscriptionId, $scheduled, $attempt));
     $amount = Money::normalize((string) $sub['amount']) ?? '0.00';
     $payer = Payer::fromValues(Forms::schemaAt($form, $entry['form_version']), $entry['data']);
     if (empty($payer['email']) && $entry['payer_email'] !== '') {
       $payer['email'] = $entry['payer_email'];
     }
-    $metadata = Charger::gateway()->metadata('EF-S' . $subscriptionId, $form['title'] . ' (' . Fields::frequencyLabel($sub['interval_unit']) . ')', $payer, ['orderid' => $orderId]);
+    $description = $form['title'] . ' (' . Fields::frequencyLabel($sub['interval_unit']) . ')';
     [$read, $write] = Subscriptions::markerStore($subscriptionId);
     $card = (string) $sub['card_reference'];
 
-    $result = Charger::run($sub['mode'], $read, $write, $orderId, $amount, static fn($client) => $client->saleWithCardReference($card, $amount, $metadata));
+    if ($sub['gateway'] === Processor::STRIPE) {
+      $result = Stripe\Gateway::renewal($sub, $orderId, $amount, ['invoice' => 'EF-S' . $subscriptionId, 'entry_id' => (string) $entry['id'], 'subscription_id' => (string) $subscriptionId, 'site' => home_url()], $description, $read, $write);
+    }
+    else {
+      $metadata = Charger::gateway()->metadata('EF-S' . $subscriptionId, $description, $payer, ['orderid' => $orderId]);
+      $result = Charger::withColumns(
+        Charger::run($sub['mode'], $read, $write, $orderId, $amount, static fn($client) => $client->saleWithCardReference($card, $amount, $metadata), \Usaepay\GatewayClient::TYPES_CHARGE, $sub['account']),
+        $sub['mode'],
+        $sub['account']
+      );
+    }
 
     if ($result['outcome'] === 'unresolved' || $result['outcome'] === 'failed') {
       // Nothing is counted against the payer: either the request provably
@@ -118,8 +132,7 @@ final class Renewals {
 
     // Approved. Record the payment first (by transaction key, so a second
     // pass over the same charge records nothing new), then move the schedule.
-    $response = $result['response'];
-    $columns = Charger::recordColumns($response);
+    $columns = $result['columns'];
     $paidAmount = Money::normalize($result['amount'] ?? $amount) ?? $amount;
     $existing = Payments::findByTransaction($columns['transaction_key']);
     if (!$existing) {
@@ -130,10 +143,12 @@ final class Renewals {
         'status' => 'approved',
         'amount' => $paidAmount,
         'mode' => $sub['mode'],
+        'gateway' => $sub['gateway'],
+        'account' => $sub['account'],
         'method' => 'card',
         'orderid' => $orderId,
       ]);
-      Notes::add($entry['id'], sprintf(__('Renewal for %1$s paid %2$s: %3$s', 'embed-forms'), $scheduled->format('Y-m-d'), Money::format($paidAmount), Charger::note($response, $sub['mode'])) . ($result['reconciled'] ? ' ' . __('(recovered: the charge had gone through on an earlier run)', 'embed-forms') : ''), $subscriptionId);
+      Notes::add($entry['id'], sprintf(__('Renewal for %1$s paid %2$s: %3$s', 'embed-forms'), $scheduled->format('Y-m-d'), Money::format($paidAmount), $result['note']) . ($result['reconciled'] ? ' ' . __('(recovered: the charge had gone through on an earlier run)', 'embed-forms') : ''), $subscriptionId);
     }
     else {
       $paymentId = $existing['id'];
@@ -182,6 +197,8 @@ final class Renewals {
       'status' => 'declined',
       'amount' => $amount,
       'mode' => $sub['mode'],
+      'gateway' => $sub['gateway'],
+      'account' => $sub['account'],
       'method' => 'card',
       'gateway_message' => $result['gateway'],
     ]);
@@ -221,8 +238,8 @@ final class Renewals {
       $lines[] = sprintf(__('Next payment: %s', 'embed-forms'), wp_date(get_option('date_format'), strtotime($sub['next_charge'] . ' UTC')));
     }
     $lines[] = __('To change or cancel this recurring payment, reply to this email.', 'embed-forms');
-    $replyTo = (string) get_option('admin_email');
-    Mailer::send([$email], sprintf(__('Your payment to %s', 'embed-forms'), $site), '<p>' . implode('</p><p>', array_map($e, $lines)) . '</p>', $replyTo);
+    $replyTo = (string) ($form['settings']['from_email'] ?? '') ?: (string) get_option('admin_email');
+    Mailer::send([$email], sprintf(__('Your payment to %s', 'embed-forms'), $site), '<p>' . implode('</p><p>', array_map($e, $lines)) . '</p>', $replyTo, $form['settings']);
   }
 
   /**
@@ -244,7 +261,7 @@ final class Renewals {
       $to[] = (string) get_option('admin_email');
     }
     $url = admin_url('admin.php?page=embed-forms-entries&entry=' . (int) $entry['id']);
-    Mailer::send(array_unique($to), sprintf(__('Recurring payment cancelled: %s', 'embed-forms'), $form['title']), '<p>' . esc_html($message) . '</p><p><a href="' . esc_url($url) . '">' . esc_html__('View the entry', 'embed-forms') . '</a></p>');
+    Mailer::send(array_unique($to), sprintf(__('Recurring payment cancelled: %s', 'embed-forms'), $form['title']), '<p>' . esc_html($message) . '</p><p><a href="' . esc_url($url) . '">' . esc_html__('View the entry', 'embed-forms') . '</a></p>', '', $form['settings']);
   }
 
 }

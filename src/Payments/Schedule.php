@@ -3,9 +3,9 @@
 namespace EmbedForms\Payments;
 
 /**
- * Installment dates, from USAePay Payments' shared schedule (anchored to the
- * signup day, clamped in short months). Uses Usaepay\WordPress\Schedule
- * when that plugin has it, its Gravity Forms copy otherwise.
+ * Installment dates, anchored to the signup day and clamped in short months
+ * (the same arithmetic as USAePay Payments' shared schedule, kept here so
+ * Stripe forms work without that plugin). Pure PHP.
  */
 final class Schedule {
 
@@ -13,19 +13,47 @@ final class Schedule {
 
   public const MAX_ATTEMPTS = 3;
 
-  private static function impl(): string {
-    return class_exists('\Usaepay\WordPress\Schedule') ? '\Usaepay\WordPress\Schedule' : '\Usaepay\WordPress\Modules\GravityForms\Schedule';
-  }
+  public const UNITS = ['day', 'week', 'month', 'year'];
 
-  public static function installmentDate(\DateTimeImmutable $start, int $length, string $unit, int $index): \DateTimeImmutable {
-    return (self::impl())::installmentDate($start, $length, $unit, $index);
+  /**
+   * Month and year steps keep the day of the month, clamped to the last day
+   * when the target month is shorter (31 Jan + 1 month = 28/29 Feb).
+   */
+  public static function advance(\DateTimeImmutable $from, int $length, string $unit): \DateTimeImmutable {
+    $length = max(1, $length);
+    $unit = in_array($unit, self::UNITS, TRUE) ? $unit : 'month';
+    if ($unit === 'day' || $unit === 'week') {
+      return $from->modify('+' . ($unit === 'week' ? $length * 7 : $length) . ' days');
+    }
+    $months = $unit === 'year' ? $length * 12 : $length;
+    $day = (int) $from->format('j');
+    $firstOfTarget = $from->setDate((int) $from->format('Y'), (int) $from->format('n'), 1)->modify('+' . $months . ' months');
+    $lastDay = (int) $firstOfTarget->format('t');
+    return $firstOfTarget->setDate((int) $firstOfTarget->format('Y'), (int) $firstOfTarget->format('n'), min($day, $lastDay));
   }
 
   /**
+   * Date of installment $index (1-based) counted from the start, so a "31st"
+   * schedule returns to the 31st after a short month.
+   */
+  public static function installmentDate(\DateTimeImmutable $start, int $length, string $unit, int $index): \DateTimeImmutable {
+    return self::advance($start, max(1, $length) * max(1, $index), $unit);
+  }
+
+  /**
+   * The first installment at or after $fromIndex whose date is after $now.
+   *
    * @return array{0: int, 1: \DateTimeImmutable}
    */
   public static function nextInstallmentAfter(\DateTimeImmutable $start, \DateTimeImmutable $now, int $length, string $unit, int $fromIndex): array {
-    return (self::impl())::nextInstallmentAfter($start, $now, $length, $unit, $fromIndex);
+    $index = max(1, $fromIndex);
+    $date = self::installmentDate($start, $length, $unit, $index);
+    $guard = 0;
+    while ($date <= $now && $guard++ < 1000) {
+      $index++;
+      $date = self::installmentDate($start, $length, $unit, $index);
+    }
+    return [$index, $date];
   }
 
   public static function orderId(int $subscriptionId, \DateTimeImmutable $scheduled, int $attempt): string {

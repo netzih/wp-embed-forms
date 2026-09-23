@@ -1,8 +1,9 @@
-/* global UsaepayPayJs */
+/* global UsaepayPayJs, Stripe */
 /**
  * Embed Forms payment fields: amount, product, frequency, total and the
- * card field (USAePay Pay.js hosted fields, plus Apple Pay for one-time
- * payments). Loaded before form.js, which renders these types through
+ * card field: USAePay Pay.js hosted fields (plus Apple Pay for one-time
+ * payments) or the Stripe card element, whichever processor the form uses.
+ * Loaded before form.js, which renders these types through
  * window.EmbedForms.types.
  *
  * The total shown here is a courtesy: the server computes the amount it
@@ -27,6 +28,10 @@
   EF.ready = EF.ready || [];
 
   var card = { handles: null, applePayKey: '', applePayEntry: null, field: null, error: null, applePayBox: null };
+  var isStripe = P.processor === 'stripe';
+  // Stripe: the card element, and whether the next submit finishes a
+  // payment that stopped for the bank's check (3D Secure).
+  var stripe = { client: null, element: null, resume: false };
   var totals = [];
 
   // ---------------------------------------------------------------- money
@@ -328,8 +333,54 @@
     card.error.hidden = !text;
   }
 
+  function mountStripe() {
+    if (!P.configured || !P.publishableKey || typeof Stripe !== 'function') {
+      cardError(i18n.notConfigured || 'Payments are not set up.');
+      return;
+    }
+    stripe.client = Stripe(P.publishableKey);
+    stripe.element = stripe.client.elements().create('card', {
+      // Matches .ef-input.
+      style: {
+        base: { fontSize: '16px', lineHeight: '46px', color: '#1d1b18', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', '::placeholder': { color: '#8a857d' } },
+        invalid: { color: '#b32228', iconColor: '#b32228' }
+      }
+    });
+    card.container.classList.add('ef-card-stripe');
+    stripe.element.mount(card.container);
+    stripe.element.on('change', function (event) {
+      cardError(event.error ? event.error.message : '');
+    });
+    card.handles = stripe.element;
+  }
+
+  // Name and email for Stripe's billing details, from the first name and
+  // email fields answered.
+  function billing(api) {
+    var values = api.visibleValues();
+    var out = {};
+    fields.forEach(function (f) {
+      var v = values[f.id];
+      if (!v) {
+        return;
+      }
+      if (f.type === 'email' && !out.email) {
+        out.email = String(v);
+      } else if (f.type === 'name' && !out.name && typeof v === 'object') {
+        out.name = [v.first, v.last].filter(Boolean).join(' ') || undefined;
+      } else if (f.type === 'phone' && !out.phone) {
+        out.phone = String(v);
+      }
+    });
+    return out;
+  }
+
   function mountCard(api) {
     if (!card.field || !card.container) {
+      return;
+    }
+    if (isStripe) {
+      mountStripe();
       return;
     }
     if (!P.available || !P.configured || !P.publicKey || !window.UsaepayPayJs) {
@@ -410,6 +461,24 @@
       return null;
     }
     cardError('');
+    if (isStripe) {
+      payload.payment_method = 'card';
+      if (stripe.resume) {
+        // The server finishes the payment it already started.
+        stripe.resume = false;
+        return null;
+      }
+      if (!stripe.client) {
+        throw new Error(i18n.notConfigured || 'Payments are not set up.');
+      }
+      return stripe.client.createPaymentMethod({ type: 'card', card: stripe.element, billing_details: billing(api) }).then(function (result) {
+        if (result.error) {
+          cardError(result.error.message);
+          throw new Error(result.error.message || i18n.checkCard);
+        }
+        payload.payment_key = result.paymentMethod.id;
+      });
+    }
     if (card.applePayKey && p.frequency === 'once') {
       payload.payment_key = card.applePayKey;
       payload.payment_method = 'applepay';
@@ -429,8 +498,16 @@
     });
   });
 
-  EF.afterFailure = function () {
+  EF.afterFailure = function (result, api) {
     // Keys are single use: the next attempt mints a new one.
     card.applePayKey = '';
+    if (isStripe && stripe.client && result && result.code === 'payment_action' && result.action && result.action.client_secret) {
+      // Show the bank's check, then submit again whatever its outcome: the
+      // server reads the payment's state and approves or reports the decline.
+      stripe.client.handleNextAction({ clientSecret: result.action.client_secret }).then(function () {
+        stripe.resume = true;
+        api.submit();
+      });
+    }
   };
 }(window, document));

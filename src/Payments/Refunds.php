@@ -10,10 +10,14 @@ use Usaepay\GatewayClient;
 use Usaepay\WordPress\Gateway;
 
 /**
- * Refunds from the entry screen and subscription cancellation. An unsettled
- * sale is voided (in full); a settled one is refunded in full or in part.
- * Refunds inherit the sale's orderid at USAePay, so a marker on the sale's
- * row makes sure one whose answer was lost is found instead of repeated.
+ * Refunds from the entry screen and subscription cancellation, at the
+ * processor and account the payment was made with.
+ *
+ * USAePay: an unsettled sale is voided (in full); a settled one is refunded
+ * in full or in part. Refunds inherit the sale's orderid at USAePay, so a
+ * marker on the sale's row makes sure one whose answer was lost is found
+ * instead of repeated. Stripe: any amount, under an idempotency key fixed
+ * by what was refunded before.
  */
 final class Refunds {
 
@@ -33,56 +37,74 @@ final class Refunds {
       return ['ok' => FALSE, 'message' => sprintf(__('Enter an amount up to %s.', 'embed-forms'), Money::format($left))];
     }
     $reference = (string) $payment['transaction_key'];
-    $mode = (string) ($payment['mode'] ?: Charger::mode());
-    try {
-      $client = Charger::client($mode);
-      $transaction = $client->getTransaction($reference);
-    }
-    catch (\Throwable $e) {
-      return ['ok' => FALSE, 'message' => sprintf(__('USAePay could not be asked about the payment: %s', 'embed-forms'), $e->getMessage())];
-    }
-    $status = (string) ($transaction['status_code'] ?? '');
-    $unsettled = $status === 'P' || $status === 'A';
-    if ($unsettled && ($cents !== $paid || $already > 0)) {
-      return ['ok' => FALSE, 'message' => __('This payment has not settled yet, so it can only be voided in full. Refund the full amount, or wait until it settles (usually the next day) for a partial refund.', 'embed-forms')];
-    }
+    $mode = (string) ($payment['mode'] ?: Processor::mode($payment['gateway']));
     $refundAmount = Money::fromCents($cents);
     [$read, $write] = Payments::markerStore($paymentId);
-    $saleOrderId = trim((string) ($transaction['orderid'] ?? $payment['orderid']));
-    if ($unsettled) {
-      $call = static fn(GatewayClient $c) => $c->void($reference);
-      $types = GatewayClient::TYPES_CHARGE;
+    $unsettled = FALSE;
+    $processor = $payment['gateway'] === Processor::STRIPE ? 'Stripe' : 'USAePay';
+
+    if ($payment['gateway'] === Processor::STRIPE) {
+      // Stripe refunds any part of a payment, settled or not.
+      $result = Stripe\Gateway::refund($payment, $cents, $already, $read, $write);
+      $saleOrderId = (string) $payment['orderid'];
+      $refundKey = $result['columns']['transaction_key'] ?? '';
+      $refnum = $result['columns']['refnum'] ?? '';
     }
     else {
-      $call = static fn(GatewayClient $c) => $c->refund($reference, $refundAmount);
-      $types = GatewayClient::TYPES_REFUND;
-    }
-    if ($unsettled || $saleOrderId === '') {
-      // A void answers at once and cannot happen twice.
+      if (!Processor::usaepayActive()) {
+        return ['ok' => FALSE, 'message' => __('USAePay Payments is not active.', 'embed-forms')];
+      }
       try {
-        $response = $call($client);
-        $result = Gateway::approved($response)
-          ? ['outcome' => 'approved', 'response' => $response, 'reconciled' => FALSE]
-          : ['outcome' => 'declined', 'response' => $response, 'gateway' => Gateway::failure($response)['gateway']];
+        $client = Charger::client($mode, $payment['account']);
+        $transaction = $client->getTransaction($reference);
       }
       catch (\Throwable $e) {
-        $result = ['outcome' => 'failed', 'gateway' => $e->getMessage()];
+        return ['ok' => FALSE, 'message' => sprintf(__('USAePay could not be asked about the payment: %s', 'embed-forms'), $e->getMessage())];
       }
-    }
-    else {
-      $result = Charger::run($mode, $read, $write, $saleOrderId, $refundAmount, $call, $types);
+      $status = (string) ($transaction['status_code'] ?? '');
+      $unsettled = $status === 'P' || $status === 'A';
+      if ($unsettled && ($cents !== $paid || $already > 0)) {
+        return ['ok' => FALSE, 'message' => __('This payment has not settled yet, so it can only be voided in full. Refund the full amount, or wait until it settles (usually the next day) for a partial refund.', 'embed-forms')];
+      }
+      $saleOrderId = trim((string) ($transaction['orderid'] ?? $payment['orderid']));
+      if ($unsettled) {
+        $call = static fn(GatewayClient $c) => $c->void($reference);
+        $types = GatewayClient::TYPES_CHARGE;
+      }
+      else {
+        $call = static fn(GatewayClient $c) => $c->refund($reference, $refundAmount);
+        $types = GatewayClient::TYPES_REFUND;
+      }
+      if ($unsettled || $saleOrderId === '') {
+        // A void answers at once and cannot happen twice.
+        try {
+          $response = $call($client);
+          $result = Gateway::approved($response)
+            ? ['outcome' => 'approved', 'response' => $response, 'reconciled' => FALSE]
+            : ['outcome' => 'declined', 'response' => $response, 'gateway' => Gateway::failure($response)['gateway']];
+        }
+        catch (\Throwable $e) {
+          $result = ['outcome' => 'failed', 'gateway' => $e->getMessage()];
+        }
+      }
+      else {
+        $result = Charger::run($mode, $read, $write, $saleOrderId, $refundAmount, $call, $types, $payment['account']);
+      }
+      $refundKey = $result['outcome'] === 'approved' ? Gateway::transactionReference($result['response']) : '';
+      $refnum = (string) ($result['response']['refnum'] ?? '');
     }
 
     if ($result['outcome'] !== 'approved') {
       $why = (string) ($result['gateway'] ?? '');
+      if ($result['outcome'] !== 'unresolved') {
+        $write(NULL);
+      }
       Notes::add($payment['entry_id'], sprintf(__('Refund of %1$s failed: %2$s', 'embed-forms'), Money::format($refundAmount), $why));
       return ['ok' => FALSE, 'message' => $result['outcome'] === 'unresolved'
-        ? sprintf(__('USAePay could not confirm whether the refund went through (%s). Try again later: it will be looked up first, never sent twice.', 'embed-forms'), $why)
-        : sprintf(__('USAePay refused the refund: %s', 'embed-forms'), $why)];
+        ? sprintf(__('%1$s could not confirm whether the refund went through (%2$s). Try again later: it will be looked up first, never sent twice.', 'embed-forms'), $processor, $why)
+        : sprintf(__('%1$s refused the refund: %2$s', 'embed-forms'), $processor, $why)];
     }
-    $response = $result['response'];
     $write(NULL);
-    $refundKey = Gateway::transactionReference($response);
     Payments::create([
       'entry_id' => $payment['entry_id'],
       'subscription_id' => $payment['subscription_id'],
@@ -91,10 +113,12 @@ final class Refunds {
       'status' => $unsettled ? 'voided' : 'approved',
       'amount' => $refundAmount,
       'mode' => $mode,
+      'gateway' => $payment['gateway'],
+      'account' => $payment['account'],
       'method' => $payment['method'],
       'orderid' => $saleOrderId,
       'transaction_key' => $refundKey,
-      'refnum' => (string) ($response['refnum'] ?? ''),
+      'refnum' => $refnum,
     ]);
     $newRefunded = $already + $cents;
     Payments::update($paymentId, [
@@ -102,9 +126,10 @@ final class Refunds {
       'status' => $unsettled ? 'voided' : ($newRefunded >= $paid ? 'refunded' : 'partially_refunded'),
     ]);
     Notes::add($payment['entry_id'], sprintf(
-      $unsettled ? __('Voided %1$s before settlement (USAePay %2$s).', 'embed-forms') : __('Refunded %1$s (USAePay %2$s).', 'embed-forms'),
+      $unsettled ? __('Voided %1$s before settlement (%3$s %2$s).', 'embed-forms') : __('Refunded %1$s (%3$s %2$s).', 'embed-forms'),
       Money::format($refundAmount),
-      $refundKey ?: $reference
+      $refundKey ?: $reference,
+      $processor
     ) . (!empty($result['reconciled']) ? ' ' . __('An earlier refund request had gone through; recorded without refunding again.', 'embed-forms') : ''));
 
     // The entry is refunded once none of its money is left.

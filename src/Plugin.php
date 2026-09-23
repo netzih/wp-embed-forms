@@ -4,12 +4,12 @@ namespace EmbedForms;
 
 /**
  * Bootstrap: the public form page and submit endpoint, the admin screens,
- * and the [embed_form] shortcode. Payments are handled through the USAePay
- * Payments plugin when it is active.
+ * and the [embed_form] shortcode. Payments go through the USAePay Payments
+ * plugin or Stripe, chosen per form.
  */
 final class Plugin {
 
-  public const VERSION = '0.2.0-beta.3';
+  public const VERSION = '0.3.0-beta.1';
 
   public const CAPABILITY = 'manage_options';
 
@@ -62,10 +62,11 @@ final class Plugin {
   }
 
   /**
-   * Whether USAePay Payments is active and can take payments here.
+   * Whether any processor can take payments here: USAePay Payments is
+   * active or a Stripe account is set up.
    */
   public static function paymentsAvailable(): bool {
-    return class_exists('\Usaepay\WordPress\Plugin');
+    return class_exists('\Usaepay\WordPress\Plugin') || Settings::stripeAccounts() !== [];
   }
 
   public function loadTextdomain(): void {
