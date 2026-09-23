@@ -21,6 +21,11 @@ final class PublicPage {
 
   public const QUERY_VAR = 'embed_form';
 
+  /**
+   * The shown form's accent colour, set once the form is found.
+   */
+  private string $accent = 'blue';
+
   public function register(): void {
     add_action('init', [$this, 'rewrite']);
     add_filter('query_vars', static fn(array $vars) => array_merge($vars, [self::QUERY_VAR]));
@@ -57,6 +62,7 @@ final class PublicPage {
       exit;
     }
 
+    $this->accent = $form['settings']['accent'];
     status_header(200);
     header('Content-Security-Policy: ' . Frame::policy($form['settings']['embed_domains']));
     if ($embedded || $form['status'] !== 'live') {
@@ -204,10 +210,11 @@ final class PublicPage {
 <meta charset="<?php echo esc_attr(get_option('blog_charset')); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?php echo esc_html($title); ?></title>
+<link rel="preload" href="<?php echo esc_url($plugin->url('assets/fonts/Geist-Variable.woff2')); ?>" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="<?php echo esc_url($css); ?>">
 <?php do_action('embed_forms_page_head'); ?>
 </head>
-<body class="ef-body<?php echo $embedded ? ' ef-embedded' : ''; ?>">
+<body class="ef-body ef-accent-<?php echo esc_attr($this->accent); ?><?php echo $embedded ? ' ef-embedded' : ''; ?>">
 <main class="ef-page"><?php echo $body; // Built from escaped parts above. ?></main>
 <?php if ($config !== NULL) : ?>
 <script>window.EmbedFormsConfig = <?php echo wp_json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?>;</script>

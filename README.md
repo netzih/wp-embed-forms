@@ -58,6 +58,10 @@ address parts from `<param>_first`, `<param>_city`, ...). A
   `Content-Security-Policy: frame-ancestors` allows the form's **Allowed
   websites** (any site when empty), and it removes `X-Frame-Options`. If the
   server or a security plugin adds `X-Frame-Options` itself, exempt `/f/`.
+- **The look** comes from `assets/form.css`, set in Geist (bundled in
+  `assets/fonts`, SIL Open Font License, no third-party requests). Each form
+  picks an **Accent colour** under Settings; everything else is a `--ef-*`
+  CSS variable at the top of the file.
 - **Submissions** go to `POST /wp-json/embed-forms/v1/forms/<id>/submit`.
   Embedded iframes get no WordPress cookies, so instead of nonces the page
   carries a signed token (form id and time, HMAC with the site salts, valid

@@ -340,6 +340,12 @@
       publicKey: P.publicKey,
       payJsUrl: P.payJsUrl,
       container: card.container,
+      // Matches .ef-input: 48px box less its border.
+      styles: {
+        base: { 'font-size': '16px', 'height': '46px', 'line-height': '46px', 'color': '#1d1b18', 'background': 'transparent' },
+        valid: { 'color': '#1d1b18' },
+        invalid: { 'color': '#b32228' }
+      },
       onFieldError: function (text) { cardError(text); }
     }).then(function (handles) {
       card.handles = handles;

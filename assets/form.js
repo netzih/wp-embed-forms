@@ -604,9 +604,25 @@
       turnstileBox.hidden = !isLast;
     }
     if (progressEl) {
-      progressEl.hidden = order.length < 2;
-      progressEl.textContent = format(t('stepOf', 'Step %1$d of %2$d'), position + 1, order.length);
+      renderProgress(order, position);
     }
+  }
+
+  // One bar per visible step. When every step has a title the bars carry
+  // them and the page headings move to screen readers only; otherwise a
+  // "Step 1 of 3" line sits under the bars.
+  function renderProgress(order, position) {
+    progressEl.hidden = order.length < 2;
+    var titles = order.map(function (i) { return pages[i].pageField && pages[i].pageField.label ? pages[i].pageField.label : ''; });
+    var labeled = titles.every(Boolean);
+    formEl.classList.toggle('ef-progress-labeled', labeled);
+    var bars = el('ol', { className: 'ef-progress-bars', 'aria-hidden': 'true' }, titles.map(function (title, i) {
+      return el('li', { className: i < position ? 'ef-progress-done' : (i === position ? 'ef-progress-current' : null), text: labeled ? title : null });
+    }));
+    var status = format(t('stepOf', 'Step %1$d of %2$d'), position + 1, order.length);
+    progressEl.innerHTML = '';
+    progressEl.appendChild(bars);
+    progressEl.appendChild(el('p', { className: 'ef-progress-text' + (labeled ? ' ef-visually-hidden' : ''), text: labeled ? status + ': ' + titles[position] : status }));
   }
 
   function next() {
