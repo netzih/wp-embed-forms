@@ -245,6 +245,12 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 .ef-chip[aria-pressed="true"] { color: var(--ef-accent-text); background: var(--ef-accent); border-color: var(--ef-accent); }
 .ef-chip:focus-visible { box-shadow: 0 0 0 4px var(--ef-ring); }
 .ef-has-error .ef-chip { border-color: var(--ef-error); }
+/* On phones, three amounts a row; a short last row stretches to fill. */
+@media (max-width: 540px) {
+  .ef-amount .ef-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ef-amount .ef-chip:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
+  .ef-amount .ef-chip:last-child:nth-child(3n+2) { grid-column: span 2; }
+}
 
 .ef-money-input { position: relative; margin-top: 10px; }
 .ef-money-input[hidden] { display: none; }
@@ -272,13 +278,14 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 
 .ef-payment { display: grid; gap: 10px; }
 .ef-card-element {
-  min-height: 48px; padding: 0 6px; overflow: hidden;
+  height: 48px; overflow: hidden;
   background: var(--ef-field-bg); border: 1px solid var(--ef-border); border-radius: var(--ef-radius);
   transition: border-color .15s, box-shadow .15s, background-color .15s;
 }
 .ef-card-element:hover { border-color: var(--ef-border-hover); }
 .ef-card-element:focus-within { border-color: var(--ef-focus); background-color: #fff; box-shadow: 0 0 0 4px var(--ef-ring); }
-.ef-card-element iframe { display: block; width: 100% !important; }
+/* Pay.js frames itself at 100% of this box, one 46px row. */
+.ef-card-element iframe { display: block; width: 100% !important; height: 100%; }
 .ef-payment .ef-error { margin: 0; }
 .ef-secure { margin: 0; font-size: 12px; color: var(--ef-subtle); }
 .ef-sandbox-note { margin: 0; padding: 8px 12px; background: #fcf6e3; border-radius: 8px; font-size: 13px; color: #614b12; }
