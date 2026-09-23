@@ -16,6 +16,12 @@ final class FormSettingsTest extends TestCase {
     self::assertFalse(FormSettings::normalize(['allow_direct' => FALSE])['allow_direct']);
   }
 
+  public function testAccent(): void {
+    self::assertSame('blue', FormSettings::normalize(NULL)['accent']);
+    self::assertSame('teal', FormSettings::normalize(['accent' => 'teal'])['accent']);
+    self::assertSame('blue', FormSettings::normalize(['accent' => 'red; background: url(x)'])['accent']);
+  }
+
   public function testDomains(): void {
     self::assertSame(['example.org', '*.example.com', 'localhost:8000'], FormSettings::domains("https://Example.org/\n*.example.com, localhost:8000  bad domain!  https://example.org"));
   }

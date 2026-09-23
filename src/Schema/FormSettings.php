@@ -9,11 +9,17 @@ namespace EmbedForms\Schema;
  */
 final class FormSettings {
 
+  /**
+   * Accent colours a form may use; form.css defines each as ef-accent-*.
+   */
+  public const ACCENTS = ['blue', 'teal', 'green', 'violet', 'rose', 'ink'];
+
   public static function defaults(): array {
     return [
       'submit_label' => 'Submit',
       'show_title' => TRUE,
       'description' => '',
+      'accent' => 'blue',
       'confirmation' => [
         'type' => 'message',
         'message' => 'Thank you! Your submission has been received.',
@@ -71,6 +77,7 @@ final class FormSettings {
       'submit_label' => self::line($in['submit_label'] ?? $d['submit_label']) ?: $d['submit_label'],
       'show_title' => array_key_exists('show_title', $in) ? !empty($in['show_title']) : $d['show_title'],
       'description' => (string) ($in['description'] ?? ''),
+      'accent' => in_array($in['accent'] ?? NULL, self::ACCENTS, TRUE) ? $in['accent'] : $d['accent'],
       'confirmation' => [
         'type' => ($confirmation['type'] ?? 'message') === 'redirect' ? 'redirect' : 'message',
         'message' => (string) ($confirmation['message'] ?? $d['confirmation']['message']),

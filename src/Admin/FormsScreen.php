@@ -132,6 +132,15 @@ final class FormsScreen {
               <th scope="row"><label for="ef-submit-label"><?php esc_html_e('Submit button', 'embed-forms'); ?></label></th>
               <td><input type="text" id="ef-submit-label" name="settings[submit_label]" value="<?php echo esc_attr($s['submit_label']); ?>" class="regular-text"></td>
             </tr>
+            <tr>
+              <th scope="row"><?php esc_html_e('Accent colour', 'embed-forms'); ?></th>
+              <td><fieldset class="ef-accents"><legend class="screen-reader-text"><?php esc_html_e('Accent colour', 'embed-forms'); ?></legend>
+                <?php foreach (self::accents() as $key => [$label, $hex]) : ?>
+                  <label><input type="radio" name="settings[accent]" value="<?php echo esc_attr($key); ?>" <?php checked($s['accent'], $key); ?>> <span class="ef-swatch" style="background:<?php echo esc_attr($hex); ?>"></span> <?php echo esc_html($label); ?></label>
+                <?php endforeach; ?>
+                <p class="description"><?php esc_html_e('Used for selected choices, the focus ring and the main button.', 'embed-forms'); ?></p>
+              </fieldset></td>
+            </tr>
           </table>
 
           <h2><?php esc_html_e('After submission', 'embed-forms'); ?></h2>
@@ -291,6 +300,23 @@ final class FormsScreen {
     ]);
     wp_safe_redirect(Menu::formsUrl(['form' => $id]));
     exit;
+  }
+
+  /**
+   * Accent choices for the editor, as key => [label, swatch]; the swatches
+   * match form.css.
+   *
+   * @return array<string, array{string, string}>
+   */
+  private static function accents(): array {
+    return [
+      'blue' => [__('Blue', 'embed-forms'), '#1666aa'],
+      'teal' => [__('Teal', 'embed-forms'), '#007475'],
+      'green' => [__('Green', 'embed-forms'), '#21763c'],
+      'violet' => [__('Violet', 'embed-forms'), '#6453a7'],
+      'rose' => [__('Rose', 'embed-forms'), '#a33949'],
+      'ink' => [__('Ink', 'embed-forms'), '#2b2d31'],
+    ];
   }
 
   public function save(): void {

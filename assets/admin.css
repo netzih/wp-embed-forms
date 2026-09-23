@@ -34,3 +34,5 @@
 .ef-status-active, .ef-status-completed { background: #d1f0d5; color: #0a4b1a; }
 .ef-status-failing { background: #fcf0c3; color: #614200; }
 .ef-status-cancelled { background: #e0e0e0; color: #3c434a; }
+.ef-accents label { display: inline-flex; align-items: center; gap: 6px; margin: 0 16px 6px 0; }
+.ef-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 50%; }
