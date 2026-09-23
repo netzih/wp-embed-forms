@@ -1,0 +1,27 @@
+.ef-editor-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0 8px; }
+.ef-editor-header .ef-title-input { flex: 1 1 320px; font-size: 20px; padding: 4px 10px; }
+.ef-back { display: inline-block; margin-top: 10px; text-decoration: none; }
+.ef-editor-header .ef-back { flex-basis: 100%; margin: 0; }
+.ef-tabs { margin-bottom: 16px; }
+.ef-tab-panel[hidden] { display: none; }
+.ef-code-block { max-width: 900px; margin-bottom: 22px; }
+.ef-code-block h3 { margin-bottom: 4px; }
+.ef-code-row { display: flex; gap: 8px; align-items: flex-start; }
+.ef-code-row textarea { font-size: 13px; }
+.ef-preview-frame { max-width: 760px; border: 1px dashed #c3c4c7; padding: 12px; background: #fff; }
+.ef-status { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: #f0f0f1; }
+.ef-status-live, .ef-status-paid { background: #d1f0d5; color: #0a4b1a; }
+.ef-status-draft, .ef-status-pending_payment { background: #fcf0c3; color: #614200; }
+.ef-status-closed, .ef-status-trash { background: #e0e0e0; color: #3c434a; }
+.ef-status-failed, .ef-status-spam { background: #fbdcdc; color: #8a1f1f; }
+.ef-status-refunded { background: #dce9f7; color: #0b3a6b; }
+.ef-unread { font-weight: 700; }
+.ef-form-picker { margin: 8px 0 12px; display: flex; gap: 8px; align-items: center; }
+.ef-entry-layout { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 12px; }
+.ef-entry-main { flex: 1 1 520px; min-width: 0; }
+.ef-entry-side { flex: 0 0 300px; }
+.ef-entry-side .postbox .hndle { padding: 10px 12px; margin: 0; font-size: 14px; }
+.ef-entry-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-top: 1px solid #dcdcde; }
+.ef-answers th { width: 30%; font-weight: 600; vertical-align: top; }
+.ef-empty { color: #8c8f94; }
+.ef-ua { word-break: break-word; font-size: 12px; }

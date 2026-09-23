@@ -1,0 +1,99 @@
+/* Embed Forms public page. Customise per site with the CSS variables. */
+:root {
+  --ef-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ef-text: #1d2327;
+  --ef-muted: #50575e;
+  --ef-border: #c3c4c7;
+  --ef-focus: #2271b1;
+  --ef-accent: #2271b1;
+  --ef-accent-text: #fff;
+  --ef-error: #b32d2e;
+  --ef-bg: #fff;
+  --ef-field-bg: #fff;
+  --ef-radius: 6px;
+  --ef-gap: 18px;
+  --ef-max-width: 720px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--ef-bg); }
+body.ef-body { font-family: var(--ef-font); font-size: 16px; line-height: 1.5; color: var(--ef-text); }
+.ef-embedded, .ef-embedded body { background: transparent; overflow: hidden; }
+
+.ef-page { max-width: var(--ef-max-width); margin: 0 auto; padding: 32px 20px 48px; }
+.ef-embedded .ef-page { padding: 4px 2px 8px; max-width: none; }
+
+.ef-title { font-size: 1.75rem; line-height: 1.25; margin: 0 0 8px; }
+.ef-description { color: var(--ef-muted); margin-bottom: 20px; }
+.ef-description p { margin: 0 0 10px; }
+
+.ef-preview-banner { background: #fcf9e8; border: 1px solid #dba617; border-radius: var(--ef-radius); padding: 10px 14px; margin-bottom: 20px; font-size: 14px; }
+.ef-notice { padding: 16px; border: 1px solid var(--ef-border); border-radius: var(--ef-radius); background: #f6f7f7; }
+
+.ef-step { display: flex; flex-wrap: wrap; gap: var(--ef-gap) 16px; }
+.ef-step[hidden] { display: none; }
+.ef-step-title { flex: 0 0 100%; font-size: 1.3rem; margin: 0; }
+.ef-step > .ef-help { flex: 0 0 100%; margin: -8px 0 0; }
+.ef-progress { font-size: 14px; color: var(--ef-muted); margin-bottom: 12px; }
+
+.ef-field { flex: 0 0 100%; min-width: 0; margin: 0; padding: 0; border: 0; }
+.ef-field[hidden] { display: none; }
+.ef-width-half { flex: 0 0 calc(50% - 8px); }
+@media (max-width: 540px) { .ef-width-half { flex-basis: 100%; } }
+
+.ef-label { display: block; font-weight: 600; margin: 0 0 6px; padding: 0; }
+.ef-required { color: var(--ef-error); }
+.ef-help { font-size: 14px; color: var(--ef-muted); margin: 6px 0 0; }
+.ef-error { font-size: 14px; color: var(--ef-error); margin: 6px 0 0; }
+.ef-error[hidden] { display: none; }
+
+.ef-input {
+  display: block; width: 100%; font: inherit; color: inherit; background: var(--ef-field-bg);
+  border: 1px solid var(--ef-border); border-radius: var(--ef-radius); padding: 10px 12px; min-height: 44px;
+}
+textarea.ef-input { resize: vertical; min-height: 96px; }
+.ef-input:focus { outline: 2px solid var(--ef-focus); outline-offset: 0; border-color: var(--ef-focus); }
+.ef-has-error .ef-input { border-color: var(--ef-error); }
+.ef-select { appearance: auto; }
+
+.ef-choices { display: flex; flex-direction: column; gap: 8px; }
+.ef-choice { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.ef-choice input { width: 18px; height: 18px; margin: 3px 0 0; flex: none; accent-color: var(--ef-accent); }
+
+.ef-parts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.ef-part-label { display: block; font-size: 13px; color: var(--ef-muted); margin-top: 4px; }
+.ef-parts-address .ef-part-line1, .ef-parts-address .ef-part-line2 { grid-column: 1 / -1; }
+.ef-parts-name { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+@media (max-width: 540px) { .ef-parts { grid-template-columns: 1fr; } }
+
+.ef-section { border-top: 1px solid var(--ef-border); padding-top: 16px; }
+.ef-section:first-child { border-top: 0; padding-top: 0; }
+.ef-section-title { font-size: 1.2rem; margin: 0; }
+.ef-html > :first-child { margin-top: 0; }
+.ef-html > :last-child { margin-bottom: 0; }
+
+.ef-hp { position: absolute !important; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+
+.ef-turnstile { margin-top: var(--ef-gap); min-height: 65px; }
+.ef-turnstile[hidden] { display: none; }
+
+.ef-message { margin-top: var(--ef-gap); padding: 12px 14px; border-radius: var(--ef-radius); }
+.ef-message[hidden] { display: none; }
+.ef-message-error { background: #fcf0f1; color: var(--ef-error); border: 1px solid #f0c3c4; }
+
+.ef-nav { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.ef-button {
+  font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--ef-accent); background: var(--ef-accent);
+  color: var(--ef-accent-text); border-radius: var(--ef-radius); padding: 12px 24px; min-height: 46px;
+}
+.ef-button[hidden] { display: none; }
+.ef-button:hover { filter: brightness(1.08); }
+.ef-button:focus-visible { outline: 2px solid var(--ef-focus); outline-offset: 2px; }
+.ef-button:disabled { opacity: .6; cursor: progress; }
+.ef-button-secondary { background: transparent; color: var(--ef-accent); }
+.ef-prev { margin-right: auto; }
+.ef-busy { cursor: progress; }
+
+.ef-confirmation { padding: 20px; border: 1px solid #b8e6bf; background: #edfaef; border-radius: var(--ef-radius); outline: none; }
+.ef-confirmation > :first-child { margin-top: 0; }
+.ef-confirmation > :last-child { margin-bottom: 0; }
