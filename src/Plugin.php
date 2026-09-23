@@ -9,7 +9,7 @@ namespace EmbedForms;
  */
 final class Plugin {
 
-  public const VERSION = '0.2.0-beta.2';
+  public const VERSION = '0.2.0-beta.3';
 
   public const CAPABILITY = 'manage_options';
 
