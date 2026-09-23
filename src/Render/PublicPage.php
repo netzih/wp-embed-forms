@@ -41,6 +41,10 @@ final class PublicPage {
     $canPreview = current_user_can('manage_options');
 
     nocache_headers();
+    // Every page view carries its own signed token, so no page cache may
+    // keep one. The Cloudflare plugin marks pages for its edge cache (APO)
+    // on init; this replaces its header.
+    header('cf-edge-cache: no-cache');
     header_remove('X-Frame-Options');
     header('Content-Type: text/html; charset=' . get_option('blog_charset'));
     header('X-Content-Type-Options: nosniff');
