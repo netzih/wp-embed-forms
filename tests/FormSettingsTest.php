@@ -33,4 +33,22 @@ final class FormSettingsTest extends TestCase {
     self::assertSame('https://example.org/thanks?n={field:name}', $s['confirmation']['url']);
   }
 
+  public function testSenderAndPaymentProcessor(): void {
+    $d = FormSettings::normalize(NULL);
+    self::assertSame(['processor' => 'usaepay', 'usaepay_account' => 'default', 'stripe_account' => ''], $d['payment']);
+    self::assertSame('', $d['from_email']);
+
+    $s = FormSettings::normalize([
+      'from_name' => "Camp\nOffice",
+      'from_email' => ' Camp@Example.org ',
+      'payment' => ['processor' => 'stripe', 'usaepay_account' => '', 'stripe_account' => 'Camp Account!'],
+    ]);
+    self::assertSame('Camp Office', $s['from_name']);
+    self::assertSame('camp@example.org', $s['from_email']);
+    self::assertSame(['processor' => 'stripe', 'usaepay_account' => 'default', 'stripe_account' => 'campaccount'], $s['payment']);
+
+    self::assertSame('', FormSettings::normalize(['from_email' => 'not an email'])['from_email']);
+    self::assertSame('usaepay', FormSettings::normalize(['payment' => ['processor' => 'paypal']])['payment']['processor']);
+  }
+
 }

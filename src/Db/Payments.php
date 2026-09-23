@@ -82,6 +82,9 @@ final class Payments {
     $row['parent_id'] = $row['parent_id'] === NULL ? NULL : (int) $row['parent_id'];
     $marker = !empty($row['marker_json']) ? json_decode((string) $row['marker_json'], TRUE) : NULL;
     $row['marker'] = is_array($marker) ? $marker : NULL;
+    // Rows from before processors were recorded are USAePay's.
+    $row['gateway'] = ($row['gateway'] ?? '') ?: 'usaepay';
+    $row['account'] = (string) ($row['account'] ?? '');
     return $row;
   }
 

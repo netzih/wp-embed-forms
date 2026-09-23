@@ -6,10 +6,13 @@ namespace EmbedForms\Db;
  * Table definitions, applied with dbDelta whenever the stored schema
  * version is older than this file's. The payment and subscription tables
  * exist from the start so later releases only add columns.
+ *
+ * 3: gateway and account on payments and subscriptions (empty on older rows
+ * means USAePay's default account), customer_reference for Stripe.
  */
 final class Schema {
 
-  public const VERSION = '2';
+  public const VERSION = '3';
 
   private const OPTION = 'embed_forms_db_version';
 
@@ -90,6 +93,8 @@ final class Schema {
   refunded_amount decimal(12,2) NOT NULL DEFAULT 0,
   currency char(3) NOT NULL DEFAULT 'USD',
   mode varchar(10) NOT NULL DEFAULT '',
+  gateway varchar(20) NOT NULL DEFAULT '',
+  account varchar(64) NOT NULL DEFAULT '',
   method varchar(20) NOT NULL DEFAULT '',
   orderid varchar(64) NOT NULL DEFAULT '',
   transaction_key varchar(64) NOT NULL DEFAULT '',
@@ -112,6 +117,9 @@ final class Schema {
   form_id bigint(20) unsigned NOT NULL,
   status varchar(20) NOT NULL DEFAULT 'active',
   mode varchar(10) NOT NULL DEFAULT '',
+  gateway varchar(20) NOT NULL DEFAULT '',
+  account varchar(64) NOT NULL DEFAULT '',
+  customer_reference varchar(64) NOT NULL DEFAULT '',
   card_reference varchar(64) NOT NULL DEFAULT '',
   card_brand varchar(32) NOT NULL DEFAULT '',
   card_last4 varchar(4) NOT NULL DEFAULT '',
