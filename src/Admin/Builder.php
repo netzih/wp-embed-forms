@@ -37,6 +37,7 @@ final class Builder {
           'choice' => __('Choices', 'embed-forms'),
           'layout' => __('Layout', 'embed-forms'),
           'payment' => __('Payment', 'embed-forms'),
+          'donor' => __('Donor list', 'embed-forms'),
         ],
         'frequencies' => array_combine(Fields::FREQUENCIES, array_map([Fields::class, 'frequencyLabel'], Fields::FREQUENCIES)),
         'paymentsAvailable' => Plugin::paymentsAvailable(),

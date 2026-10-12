@@ -25,8 +25,8 @@
   var palette = config.palette || {};
   var groups = config.groups || {};
   var CHOICE = ['select', 'radio', 'checkbox'];
-  var INPUT = ['text', 'textarea', 'email', 'phone', 'number', 'select', 'radio', 'checkbox', 'date', 'name', 'address', 'hidden', 'amount', 'product', 'frequency'];
-  var SINGLE = ['frequency', 'payment'];
+  var INPUT = ['text', 'textarea', 'email', 'phone', 'number', 'select', 'radio', 'checkbox', 'date', 'name', 'address', 'hidden', 'amount', 'product', 'frequency', 'display_name', 'anonymous'];
+  var SINGLE = ['frequency', 'payment', 'display_name', 'anonymous'];
   var OPERATORS = [
     { value: 'is', label: __('is', 'embed-forms') },
     { value: 'isnot', label: __('is not', 'embed-forms') },
@@ -132,6 +132,16 @@
     if (type === 'total') {
       field.label = __('Total', 'embed-forms');
     }
+    if (type === 'display_name') {
+      field.label = __('Name to display', 'embed-forms');
+      field.help = __('How your name appears on the donor list. Leave blank to show your first name and last initial.', 'embed-forms');
+      field.placeholder = __('e.g. The Cohen Family', 'embed-forms');
+      field.max = 60;
+    }
+    if (type === 'anonymous') {
+      field.label = __('Give anonymously (hide my name on the donor list)', 'embed-forms');
+      field.required = false;
+    }
     return field;
   }
 
@@ -185,6 +195,8 @@
         }));
       case 'total':
         return h('div', { className: 'efb-total' }, '$0.00');
+      case 'anonymous':
+        return h('div', { className: 'efb-options' }, h('span', { className: 'efb-option efb-option-checkbox' }, field.label || __('Give anonymously', 'embed-forms')));
       case 'payment':
         return h('div', { className: 'efb-card' }, h('div', { className: 'efb-fake-input' }, '1234 1234 1234 1234     MM/YY   CVC'), field.apple_pay ? h('small', null, __('Apple Pay button shown when available (one-time payments)', 'embed-forms')) : null);
       default:
@@ -395,7 +407,7 @@
     var add = function (node) { controls.push(node); };
 
     if (field.type !== 'html' && field.type !== 'page') {
-      add(h(C.TextControl, { key: 'label', label: field.type === 'section' ? __('Heading', 'embed-forms') : __('Label', 'embed-forms'), value: field.label || '', onChange: function (v) { set({ label: v }); } }));
+      add(h(C.TextControl, { key: 'label', label: field.type === 'section' ? __('Heading', 'embed-forms') : field.type === 'anonymous' ? __('Checkbox text', 'embed-forms') : __('Label', 'embed-forms'), value: field.label || '', onChange: function (v) { set({ label: v }); } }));
     }
     if (field.type === 'page') {
       add(h(C.TextControl, { key: 'label', label: __('Title of the next page (optional)', 'embed-forms'), value: field.label || '', onChange: function (v) { set({ label: v }); } }));
@@ -403,10 +415,10 @@
     if (field.type === 'html') {
       add(h(C.TextareaControl, { key: 'content', label: __('Content (HTML allowed)', 'embed-forms'), rows: 8, value: field.content || '', onChange: function (v) { set({ content: v }); } }));
     }
-    if (input && field.type !== 'hidden') {
+    if (input && field.type !== 'hidden' && field.type !== 'anonymous') {
       add(h(C.ToggleControl, { key: 'required', label: field.type === 'product' ? __('Required (at least one)', 'embed-forms') : __('Required', 'embed-forms'), checked: !!field.required, onChange: function (v) { set({ required: v }); } }));
     }
-    if (['text', 'textarea', 'email', 'phone', 'number', 'select'].indexOf(field.type) !== -1) {
+    if (['text', 'textarea', 'email', 'phone', 'number', 'select', 'display_name'].indexOf(field.type) !== -1) {
       add(h(C.TextControl, { key: 'placeholder', label: __('Placeholder', 'embed-forms'), value: field.placeholder || '', onChange: function (v) { set({ placeholder: v }); } }));
     }
     if (field.type !== 'html' && field.type !== 'hidden') {
@@ -431,7 +443,13 @@
         h(C.TextControl, { label: __('Maximum', 'embed-forms'), type: 'number', value: field.max === undefined ? '' : field.max, onChange: function (v) { set({ max: v }); } }),
         h(C.TextControl, { label: __('Step', 'embed-forms'), type: 'number', value: field.step === undefined ? '' : field.step, onChange: function (v) { set({ step: v }); } })));
     }
-    if (field.type === 'text' || field.type === 'textarea') {
+    if (field.type === 'display_name' || field.type === 'anonymous') {
+      add(h('p', { key: 'donorinfo', className: 'description' }, __('Used by the campaign donor list (Settings > Campaign). A form can have one of each.', 'embed-forms')));
+    }
+    if (field.type === 'anonymous') {
+      add(h(C.ToggleControl, { key: 'adefault', label: __('Checked by default', 'embed-forms'), checked: field['default'] === '1', onChange: function (v) { set({ 'default': v ? '1' : '' }); } }));
+    }
+    if (field.type === 'text' || field.type === 'textarea' || field.type === 'display_name') {
       add(h(C.TextControl, { key: 'max', label: __('Maximum length', 'embed-forms'), type: 'number', value: field.max || '', onChange: function (v) { set({ max: v }); } }));
     }
     if (field.type === 'textarea') {
@@ -486,7 +504,7 @@
         add(h(C.Notice, { key: 'nopay', status: 'warning', isDismissible: false }, __('No payment processor is set up (activate USAePay Payments or add a Stripe account under Embed Forms > Settings), so this form cannot take payments yet.', 'embed-forms')));
       }
     }
-    if (input && ['name', 'address', 'hidden', 'amount', 'product', 'frequency'].indexOf(field.type) === -1 || field.type === 'hidden') {
+    if (input && ['name', 'address', 'hidden', 'amount', 'product', 'frequency', 'anonymous'].indexOf(field.type) === -1 || field.type === 'hidden') {
       add(h(C.TextControl, { key: 'default', label: __('Default value', 'embed-forms'), value: typeof field['default'] === 'string' ? field['default'] : '', onChange: function (v) { set({ 'default': v }); } }));
     }
     if (input && field.type !== 'product' && field.type !== 'frequency') {

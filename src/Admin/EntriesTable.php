@@ -54,13 +54,16 @@ final class EntriesTable extends \WP_List_Table {
     foreach ($this->preview as $id => $field) {
       $columns['f_' . $id] = esc_html($field['label'] ?: $id);
     }
+    if (array_intersect(array_column($this->form['schema']['fields'], 'type'), \EmbedForms\Schema\Fields::PAYMENT_TYPES)) {
+      $columns['amount'] = __('Amount', 'embed-forms');
+    }
     $columns['status'] = __('Status', 'embed-forms');
     $columns['created_at'] = __('Date', 'embed-forms');
     return $columns;
   }
 
   protected function get_sortable_columns(): array {
-    return ['id' => ['id', TRUE], 'created_at' => ['created_at', TRUE], 'status' => ['status', FALSE]];
+    return ['id' => ['id', TRUE], 'created_at' => ['created_at', TRUE], 'status' => ['status', FALSE], 'amount' => ['amount', TRUE]];
   }
 
   protected function get_bulk_actions(): array {
@@ -124,7 +127,14 @@ final class EntriesTable extends \WP_List_Table {
   public function column_id(array $entry): string {
     $url = Menu::entriesUrl(['entry' => $entry['id']]);
     $label = sprintf('<a href="%s"%s>%d</a>', esc_url($url), $entry['is_read'] ? '' : ' class="ef-unread"', (int) $entry['id']);
-    return $label . $this->row_actions(['view' => sprintf('<a href="%s">%s</a>', esc_url($url), esc_html__('View', 'embed-forms'))]);
+    return $label . $this->row_actions([
+      'view' => sprintf('<a href="%s">%s</a>', esc_url($url), esc_html__('View', 'embed-forms')),
+      'edit' => sprintf('<a href="%s">%s</a>', esc_url(EntryEditor::editUrl((int) $entry['id'])), esc_html__('Edit', 'embed-forms')),
+    ]);
+  }
+
+  public function column_amount(array $entry): string {
+    return $entry['amount'] === NULL ? '<span class="ef-empty">&mdash;</span>' : esc_html(\EmbedForms\Payments\Money::format((string) $entry['amount']));
   }
 
   public function column_status(array $entry): string {

@@ -337,8 +337,22 @@
     };
   }
 
+  // One box whose text is the field's label ("Give anonymously").
+  function toggleControl(field) {
+    var input = el('input', { type: 'checkbox', value: '1', id: inputId(field), 'aria-describedby': describedBy(field) });
+    return {
+      el: el('label', { className: 'ef-choice ef-toggle', 'for': inputId(field) }, [input, el('span', { text: field.label || '' })]),
+      inline: true,
+      input: input,
+      get: function () { return input.checked ? '1' : ''; },
+      set: function (v) { input.checked = /^(1|true|yes|on)$/i.test(String(v === null || v === undefined ? '' : v)); },
+      focus: function () { input.focus(); }
+    };
+  }
+
   function builtInControl(field) {
     switch (field.type) {
+      case 'anonymous': return toggleControl(field);
       case 'textarea': return textControl(field, 'text');
       case 'email': return textControl(field, 'email');
       case 'phone': return textControl(field, 'tel');
@@ -474,6 +488,15 @@
     if (field.type === 'hidden') {
       return el('div', { className: 'ef-field ef-hidden', 'data-id': field.id, hidden: true }, [control.el]);
     }
+    if (control.inline) {
+      var inlineWrapper = el('div', { className: 'ef-field ef-type-' + field.type + ' ef-width-' + (field.width || 'full'), 'data-id': field.id }, [
+        control.el,
+        field.help ? el('p', { className: 'ef-help', id: inputId(field) + '-help', text: field.help }) : null,
+        el('p', { className: 'ef-error', id: inputId(field) + '-error', role: 'alert', hidden: true })
+      ]);
+      inlineWrapper.addEventListener('change', onChange);
+      return inlineWrapper;
+    }
     var labelText = [field.label || ''];
     var label = control.group
       ? el('legend', { className: 'ef-label' }, labelText.concat(field.required ? [el('span', { className: 'ef-required', 'aria-hidden': 'true', text: ' *' })] : []))
@@ -547,6 +570,69 @@
     renderNav();
   }
 
+  // How the person will appear on the campaign's donor list, shown under
+  // the display name field. Mirrors Campaign\Donors::publicName().
+  function donorName(all) {
+    var list = config.donorList || {};
+    var anonymousLabel = list.anonymousLabel || 'Anonymous';
+    var nameField = null;
+    var shown = '';
+    var anonymous = false;
+    fields.forEach(function (f) {
+      if (!visible[f.id]) {
+        return;
+      }
+      if (f.type === 'anonymous' && all[f.id] === '1') {
+        anonymous = true;
+      } else if (f.type === 'display_name') {
+        shown = String(all[f.id] || '').trim();
+      } else if (f.type === 'name' && !nameField) {
+        nameField = f;
+      }
+    });
+    if (anonymous) {
+      return anonymousLabel;
+    }
+    if (shown) {
+      return shown;
+    }
+    if (list.fallback !== 'anonymous' && nameField) {
+      var name = all[nameField.id] || {};
+      var first = String(name.first || '').trim();
+      var last = String(name.last || '').trim();
+      if (first) {
+        return first + (last ? ' ' + last.charAt(0).toUpperCase() + '.' : '');
+      }
+    }
+    return anonymousLabel;
+  }
+
+  function updateDonorPreview() {
+    if (!config.donorList) {
+      return;
+    }
+    var all = values();
+    fields.forEach(function (f) {
+      if (f.type === 'display_name' && controls[f.id] && wrappers[f.id]) {
+        var anonymous = fields.some(function (a) { return a.type === 'anonymous' && visible[a.id] && all[a.id] === '1'; });
+        var input = wrappers[f.id].querySelector('input');
+        if (input) {
+          input.disabled = anonymous;
+        }
+        var preview = wrappers[f.id].querySelector('.ef-donor-preview');
+        if (!preview) {
+          preview = el('p', { className: 'ef-donor-preview', 'aria-live': 'polite' });
+          wrappers[f.id].appendChild(preview);
+        }
+        preview.textContent = '';
+        var parts = String(config.donorList.preview || 'Shown on the donor list as %s').split('%s');
+        preview.appendChild(document.createTextNode(parts[0] || ''));
+        preview.appendChild(el('strong', { text: donorName(all) }));
+        preview.appendChild(document.createTextNode(parts[1] || ''));
+      }
+    });
+  }
+
   function onChange(event) {
     var wrapper = event.currentTarget;
     var id = wrapper.getAttribute('data-id');
@@ -557,6 +643,7 @@
       }
     }
     updateVisibility();
+    updateDonorPreview();
     // The "correct the highlighted fields" banner goes once nothing is highlighted.
     if (messageEl && !messageEl.hidden && messageEl.getAttribute('data-kind') === 'fix' && !formEl.querySelector('.ef-has-error')) {
       setMessage('');
@@ -872,6 +959,7 @@
     prefill();
     currentPage = 0;
     updateVisibility();
+    updateDonorPreview();
     goToFirst();
     mountTurnstile();
     EF.ready.forEach(function (fn) { fn(api); });

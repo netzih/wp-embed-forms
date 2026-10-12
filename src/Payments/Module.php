@@ -79,6 +79,13 @@ final class Module {
     ];
     if ($gateway === Processor::STRIPE && FormSchema::hasPayment($form['schema'])) {
       $mode = Processor::mode(Processor::STRIPE);
+      // The card frame cannot read this page's fonts; Stripe loads a Google
+      // font itself from its stylesheet.
+      $font = $form['settings']['font'] ?? 'geist';
+      $fontsUrl = \EmbedForms\Render\Design::fontsUrl(['font' => $font]);
+      if ($fontsUrl !== '') {
+        $payment['font'] = ['family' => \EmbedForms\Render\Design::FONTS[$font][1], 'cssSrc' => $fontsUrl];
+      }
       $payment += [
         'publishableKey' => \EmbedForms\Settings::stripeKey($account, $mode, 'publishable'),
         'sandbox' => $mode === 'sandbox',
@@ -331,15 +338,17 @@ final class Module {
         </tr></thead>
         <tbody>
           <?php foreach (array_reverse($payments) as $p) :
-            $refundable = in_array($p['kind'], ['charge', 'renewal'], TRUE) && in_array($p['status'], ['approved', 'partially_refunded'], TRUE);
+            // Offline donations were never charged here; change or remove
+            // them by editing the entry.
+            $refundable = $p['gateway'] !== Processor::OFFLINE && in_array($p['kind'], ['charge', 'renewal'], TRUE) && in_array($p['status'], ['approved', 'partially_refunded'], TRUE);
             $left = (Money::toCents((string) $p['amount']) ?? 0) - (Money::toCents((string) $p['refunded_amount']) ?? 0);
             ?>
             <tr>
               <td><?php echo esc_html($date($p['created_at'])); ?></td>
-              <td><?php echo esc_html($kinds[$p['kind']] ?? $p['kind']); ?><?php echo $p['method'] === 'applepay' ? ' · Apple Pay' : ''; ?><?php echo $p['mode'] === 'sandbox' ? ' · <em>' . esc_html__('sandbox', 'embed-forms') . '</em>' : ''; ?></td>
+              <td><?php echo esc_html($kinds[$p['kind']] ?? $p['kind']); ?><?php echo $p['method'] === 'applepay' ? ' · Apple Pay' : ''; ?><?php echo $p['gateway'] === Processor::OFFLINE ? ' · ' . esc_html(\EmbedForms\Admin\OfflineDonations::methodLabel($p['method'])) : ''; ?><?php echo $p['mode'] === 'sandbox' ? ' · <em>' . esc_html__('sandbox', 'embed-forms') . '</em>' : ''; ?></td>
               <td><?php echo esc_html(($p['kind'] === 'refund' ? '−' : '') . Money::format((string) $p['amount'])); ?><?php echo (float) $p['refunded_amount'] > 0 && $p['kind'] !== 'refund' ? '<br><small>' . esc_html(sprintf(__('%s refunded', 'embed-forms'), Money::format((string) $p['refunded_amount']))) . '</small>' : ''; ?></td>
               <td><?php echo esc_html($labels[$p['status']] ?? $p['status']); ?><?php echo $p['gateway_message'] ? '<br><small>' . esc_html($p['gateway_message']) . '</small>' : ''; ?></td>
-              <td><small><?php echo esc_html(Processor::label($p['gateway'], $p['account'])); ?></small><br><code><?php echo esc_html($p['transaction_key'] ?: '—'); ?></code><?php echo $p['card_last4'] ? '<br><small>' . esc_html(trim($p['card_brand'] . ' •••• ' . $p['card_last4'])) . '</small>' : ''; ?></td>
+              <td><small><?php echo esc_html(Processor::label($p['gateway'], $p['account'])); ?></small><br><code><?php echo esc_html($p['transaction_key'] ?: ($p['refnum'] ?: '—')); ?></code><?php echo $p['card_last4'] ? '<br><small>' . esc_html(trim($p['card_brand'] . ' •••• ' . $p['card_last4'])) . '</small>' : ''; ?></td>
               <td>
                 <?php if ($refundable) : ?>
                   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="ef-refund-form">

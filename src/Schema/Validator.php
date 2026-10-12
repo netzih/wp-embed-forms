@@ -15,9 +15,16 @@ final class Validator {
   private const TEXTAREA_MAX = 10000;
 
   /**
+   * @param array $options
+   *   'required' => FALSE to accept empty required fields (an administrator
+   *   entering what they have); 'skip' => field types whose values are only
+   *   cleaned, not checked (the entry screen sets payment fields itself).
+   *
    * @return array{values: array<string, mixed>, errors: array<string, string>}
    */
-  public static function validate(array $schema, array $input): array {
+  public static function validate(array $schema, array $input, array $options = []): array {
+    $enforceRequired = $options['required'] ?? TRUE;
+    $skip = (array) ($options['skip'] ?? []);
     $inputs = FormSchema::inputs($schema);
     // Clean first so conditions see the same values that will be stored.
     $clean = [];
@@ -33,7 +40,7 @@ final class Validator {
         continue;
       }
       $value = $clean[$id];
-      $error = self::check($field, $value);
+      $error = in_array($field['type'], $skip, TRUE) ? NULL : self::check($enforceRequired ? $field : ['required' => FALSE] + $field, $value);
       if ($error !== NULL) {
         $errors[$id] = $error;
       }
@@ -70,6 +77,9 @@ final class Validator {
       default:
         if ($field['type'] === 'amount' && ($field['amount_mode'] ?? '') === 'fixed') {
           return (string) $field['fixed_amount'];
+        }
+        if ($field['type'] === 'anonymous') {
+          return FormSchema::isYes($raw) ? '1' : '';
         }
         if ($field['type'] === 'product' && empty($field['quantity'])) {
           return '1';

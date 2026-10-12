@@ -22,9 +22,9 @@ final class PublicPage {
   public const QUERY_VAR = 'embed_form';
 
   /**
-   * The shown form's accent colour, set once the form is found.
+   * The shown form's settings (for its look), set once the form is found.
    */
-  private string $accent = 'blue';
+  private array $design = [];
 
   public function register(): void {
     add_action('init', [$this, 'rewrite']);
@@ -62,7 +62,7 @@ final class PublicPage {
       exit;
     }
 
-    $this->accent = $form['settings']['accent'];
+    $this->design = $form['settings'];
     status_header(200);
     header('Content-Security-Policy: ' . Frame::policy($form['settings']['embed_domains']));
     if ($embedded || $form['status'] !== 'live') {
@@ -210,11 +210,23 @@ final class PublicPage {
 <meta charset="<?php echo esc_attr(get_option('blog_charset')); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?php echo esc_html($title); ?></title>
+<?php if (!$this->design || Design::usesGeist($this->design)) : ?>
 <link rel="preload" href="<?php echo esc_url($plugin->url('assets/fonts/Geist-Variable.woff2')); ?>" as="font" type="font/woff2" crossorigin>
+<?php endif; ?>
+<?php $fonts = $this->design ? Design::fontsUrl($this->design) : ''; ?>
+<?php if ($fonts !== '') : ?>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="<?php echo esc_url($fonts); ?>">
+<?php endif; ?>
 <link rel="stylesheet" href="<?php echo esc_url($css); ?>">
+<?php $vars = $this->design ? Design::cssVariables($this->design) : ''; ?>
+<?php if ($vars !== '') : ?>
+<style>:root{<?php echo str_replace(["<", ">"], "", $vars); // Font constants and validated colours only. ?>}</style>
+<?php endif; ?>
 <?php do_action('embed_forms_page_head'); ?>
 </head>
-<body class="ef-body ef-accent-<?php echo esc_attr($this->accent); ?><?php echo $embedded ? ' ef-embedded' : ''; ?>">
+<body class="<?php echo esc_attr(implode(' ', array_merge(['ef-body'], Design::bodyClasses($this->design ?: ['accent' => 'blue']), $embedded ? ['ef-embedded'] : []))); ?>">
 <main class="ef-page"><?php echo $body; // Built from escaped parts above. ?></main>
 <?php if ($config !== NULL) : ?>
 <script>window.EmbedFormsConfig = <?php echo wp_json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?>;</script>

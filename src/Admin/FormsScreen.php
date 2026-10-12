@@ -5,6 +5,7 @@ namespace EmbedForms\Admin;
 use EmbedForms\Db\Forms;
 use EmbedForms\Embed;
 use EmbedForms\Plugin;
+use EmbedForms\Render\Design;
 use EmbedForms\Schema\FormSettings;
 use EmbedForms\Settings;
 
@@ -138,7 +139,37 @@ final class FormsScreen {
                 <?php foreach (self::accents() as $key => [$label, $hex]) : ?>
                   <label><input type="radio" name="settings[accent]" value="<?php echo esc_attr($key); ?>" <?php checked($s['accent'], $key); ?>> <span class="ef-swatch" style="background:<?php echo esc_attr($hex); ?>"></span> <?php echo esc_html($label); ?></label>
                 <?php endforeach; ?>
-                <p class="description"><?php esc_html_e('Used for selected choices, the focus ring and the main button.', 'embed-forms'); ?></p>
+                <label><input type="radio" name="settings[accent]" value="custom" <?php checked($s['accent'], 'custom'); ?>> <?php esc_html_e('Brand colour', 'embed-forms'); ?></label>
+                <input type="color" name="settings[accent_color]" value="<?php echo esc_attr($s['accent_color'] ?: '#8a2c3b'); ?>" aria-label="<?php esc_attr_e('Brand colour', 'embed-forms'); ?>" class="ef-color">
+                <p class="description"><?php esc_html_e('Used for selected choices, the focus ring and the main button. Text on a brand colour turns dark when the colour is light.', 'embed-forms'); ?></p>
+              </fieldset></td>
+            </tr>
+            <tr>
+              <th scope="row"><label for="ef-font"><?php esc_html_e('Fonts', 'embed-forms'); ?></label></th>
+              <td>
+                <select id="ef-font" name="settings[font]" aria-label="<?php esc_attr_e('Text font', 'embed-forms'); ?>">
+                  <?php foreach (Design::fontChoices() as $key => $label) : ?>
+                    <option value="<?php echo esc_attr($key); ?>" <?php selected($s['font'], $key); ?>><?php echo esc_html($label); ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <select name="settings[heading_font]" aria-label="<?php esc_attr_e('Heading font', 'embed-forms'); ?>">
+                  <option value=""><?php esc_html_e('Headings: same as text', 'embed-forms'); ?></option>
+                  <?php foreach (Design::fontChoices() as $key => $label) : ?>
+                    <option value="<?php echo esc_attr($key); ?>" <?php selected($s['heading_font'], $key); ?>><?php echo esc_html(sprintf(__('Headings: %s', 'embed-forms'), $label)); ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <p class="description"><?php esc_html_e('Text, then headings, amounts and the thank-you message. Fonts other than Geist and System load from Google Fonts.', 'embed-forms'); ?></p>
+              </td>
+            </tr>
+            <tr>
+              <th scope="row"><?php esc_html_e('Style', 'embed-forms'); ?></th>
+              <td><fieldset>
+                <label><input type="radio" name="settings[layout]" value="card" <?php checked($s['layout'], 'card'); ?>> <?php esc_html_e('On its own card', 'embed-forms'); ?></label><br>
+                <label><input type="radio" name="settings[layout]" value="plain" <?php checked($s['layout'], 'plain'); ?>> <?php esc_html_e('Plain: no card, blends into the page it is embedded on', 'embed-forms'); ?></label>
+              </fieldset>
+              <fieldset style="margin-top:10px">
+                <label><input type="radio" name="settings[corners]" value="soft" <?php checked($s['corners'], 'soft'); ?>> <?php esc_html_e('Soft corners', 'embed-forms'); ?></label>
+                <label style="margin-left:14px"><input type="radio" name="settings[corners]" value="round" <?php checked($s['corners'], 'round'); ?>> <?php esc_html_e('Round corners and pill buttons', 'embed-forms'); ?></label>
               </fieldset></td>
             </tr>
           </table>

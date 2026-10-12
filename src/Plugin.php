@@ -9,7 +9,7 @@ namespace EmbedForms;
  */
 final class Plugin {
 
-  public const VERSION = '0.3.0-beta.1';
+  public const VERSION = '0.4.0-beta.1';
 
   public const CAPABILITY = 'manage_options';
 
@@ -45,6 +45,8 @@ final class Plugin {
     });
     add_shortcode('embed_form', [Embed::class, 'shortcode']);
     (new Payments\Module())->register();
+    (new Campaign\Module())->register();
+    (new Render\PageTemplate())->register();
     if (is_admin()) {
       (new Admin\Menu())->register();
     }

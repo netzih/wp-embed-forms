@@ -9,6 +9,7 @@
 
 :root {
   --ef-font: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ef-heading-font: var(--ef-font);
   --ef-text: #1d1b18;
   --ef-label-text: #2b2824;
   --ef-muted: #6b655c;
@@ -30,6 +31,8 @@
   --ef-success-bg: #eef8f0;
   --ef-success-border: #bfe3c6;
   --ef-radius: 10px;
+  --ef-button-radius: 12px;
+  --ef-card-radius: 18px;
   --ef-gap: 22px;
   --ef-max-width: 680px;
 
@@ -61,7 +64,7 @@ body.ef-body {
 /* The form sits on one card, directly opened or embedded. */
 .ef-page {
   max-width: var(--ef-max-width); margin: 32px auto 48px; padding: clamp(20px, 6vw, 40px);
-  background: var(--ef-card-bg); border: 1px solid var(--ef-card-border); border-radius: 18px; box-shadow: var(--ef-card-shadow);
+  background: var(--ef-card-bg); border: 1px solid var(--ef-card-border); border-radius: var(--ef-card-radius); box-shadow: var(--ef-card-shadow);
 }
 /* The frame height counts this margin, which leaves room for the shadow. */
 .ef-embedded .ef-page { max-width: none; margin: 1px 1px 14px; }
@@ -69,7 +72,18 @@ body.ef-body {
   body.ef-body:not(.ef-embedded) .ef-page { margin: 12px; }
 }
 
-.ef-title { font-size: clamp(22px, 5vw, 28px); font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
+/* Plain layout: embedded, no card of its own, for a page that already puts
+   the form on one. Opened directly, it keeps its card. */
+.ef-layout-plain.ef-embedded { --ef-field-bg: #fff; }
+.ef-layout-plain.ef-embedded .ef-page { padding: 0; margin: 0 0 6px; background: transparent; border: 0; box-shadow: none; border-radius: 0; }
+
+/* Round corners: pill buttons and softer fields. */
+.ef-corners-round { --ef-radius: 14px; --ef-button-radius: 999px; --ef-card-radius: 26px; }
+
+/* A custom accent's shades come from the form's own :root rule. */
+.ef-accent-custom { --ef-focus: var(--ef-accent); }
+
+.ef-title { font-family: var(--ef-heading-font); font-size: clamp(22px, 5vw, 28px); font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
 .ef-description { color: var(--ef-muted); font-size: 15px; margin-bottom: 28px; text-wrap: pretty; }
 .ef-description p { margin: 0 0 10px; }
 .ef-description > :last-child { margin-bottom: 0; }
@@ -95,7 +109,7 @@ body.ef-body {
 
 .ef-step { display: flex; flex-wrap: wrap; gap: var(--ef-gap) 12px; }
 .ef-step[hidden] { display: none; }
-.ef-step-title { flex: 0 0 100%; font-size: 20px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; margin: 0; }
+.ef-step-title { flex: 0 0 100%; font-family: var(--ef-heading-font); font-size: 20px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; margin: 0; }
 .ef-step > .ef-help { flex: 0 0 100%; margin: -14px 0 0; }
 /* The progress bars already name each step. */
 .ef-progress-labeled .ef-step-title { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -116,7 +130,7 @@ legend.ef-label + * { clear: both; }
 
 .ef-section { padding-top: 22px; border-top: 1px solid var(--ef-rule); }
 .ef-section:first-child { padding-top: 0; border-top: 0; }
-.ef-section-title { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+.ef-section-title { font-family: var(--ef-heading-font); font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
 .ef-section .ef-help { margin-top: 4px; }
 .ef-html { font-size: 15px; color: var(--ef-label-text); }
 .ef-html > :first-child { margin-top: 0; }
@@ -212,7 +226,7 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 .ef-button {
   flex: 3 1 200px; min-height: 52px; padding: 12px 24px;
   font: inherit; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.25;
-  color: var(--ef-accent-text); background: var(--ef-accent); border: 1px solid transparent; border-radius: 12px; cursor: pointer;
+  color: var(--ef-accent-text); background: var(--ef-accent); border: 1px solid transparent; border-radius: var(--ef-button-radius); cursor: pointer;
   box-shadow: 0 1px 2px rgba(20, 30, 60, .2), inset 0 1px 0 rgba(255, 255, 255, .12);
   transition: background-color .15s, box-shadow .15s;
 }
@@ -230,8 +244,30 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 .ef-busy { cursor: progress; }
 
 .ef-confirmation { padding: 20px 22px; border: 1px solid var(--ef-success-border); background: var(--ef-success-bg); border-radius: 12px; outline: none; }
+/* Forms with their own design (.ef-designed) get a larger thank-you with a
+   check mark in the accent colour. */
+.ef-designed .ef-confirmation {
+  position: relative; padding: 64px 24px 26px; text-align: center; font-size: 17px; line-height: 1.6;
+  border-radius: var(--ef-card-radius); animation: ef-pop .35s ease both;
+}
+.ef-designed .ef-confirmation::before {
+  content: ""; position: absolute; top: 18px; left: 50%; width: 36px; height: 36px; margin-left: -18px; border-radius: 50%;
+  background: var(--ef-accent) center / 18px 14px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='14' viewBox='0 0 18 14'%3E%3Cpolyline points='2,7.5 7,12 16,2' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.ef-designed .ef-confirmation h1, .ef-designed .ef-confirmation h2, .ef-designed .ef-confirmation h3 { font-family: var(--ef-heading-font); line-height: 1.2; }
+@keyframes ef-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 .ef-confirmation > :first-child { margin-top: 0; }
 .ef-confirmation > :last-child { margin-bottom: 0; }
+
+/* ---------------------------------------------------------- donor list */
+
+/* "Give anonymously": one box on a quiet panel. */
+.ef-toggle { align-items: center; padding: 14px 16px; background: var(--ef-panel); border: 1px solid transparent; border-radius: var(--ef-radius); transition: background-color .15s, border-color .15s; }
+.ef-toggle:has(input:checked) { background: var(--ef-accent-tint); border-color: var(--ef-accent); }
+.ef-type-anonymous .ef-help { margin-top: 6px; }
+.ef-donor-preview { margin: 8px 0 0; font-size: 13px; color: var(--ef-muted); }
+.ef-donor-preview strong { color: var(--ef-accent-ink); font-weight: 600; }
+.ef-type-display_name .ef-input:disabled { opacity: .55; cursor: not-allowed; }
 
 /* ------------------------------------------------------ payment fields */
 
@@ -243,6 +279,11 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 }
 .ef-chip:hover { border-color: var(--ef-border-hover); }
 .ef-chip[aria-pressed="true"] { color: var(--ef-accent-text); background: var(--ef-accent); border-color: var(--ef-accent); }
+.ef-designed .ef-chip[aria-pressed="true"] { box-shadow: 0 6px 14px -6px var(--ef-accent); }
+.ef-designed .ef-amount .ef-chip { font-family: var(--ef-heading-font); font-weight: 600; font-size: 18px; }
+@media (min-width: 541px) {
+  .ef-designed .ef-amount-choices .ef-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .ef-chip:focus-visible { box-shadow: 0 0 0 4px var(--ef-ring); }
 .ef-has-error .ef-chip { border-color: var(--ef-error); }
 /* On phones, three amounts a row; a short last row stretches to fill. */
@@ -298,7 +339,7 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 .ef-divider::before, .ef-divider::after { content: ""; flex: 1; border-top: 1px solid var(--ef-rule); }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: 0s !important; }
+  *, *::before, *::after { transition-duration: 0s !important; animation: none !important; }
 }
 
 @media (forced-colors: active) {
