@@ -16,7 +16,10 @@ use EmbedForms\Payments\Processor;
  */
 final class Totals {
 
-  public const RECENT = 50;
+  /**
+   * The most donors the list can show (the campaign's max_donors, 1-200).
+   */
+  public const MAX_RECENT = 200;
 
   private const CACHE_TTL = 60;
 
@@ -26,11 +29,13 @@ final class Totals {
   public static function forForm(array $form): array {
     $key = self::cacheKey((int) $form['id']);
     $cached = get_transient($key);
-    if (is_array($cached)) {
+    $settings = md5((string) wp_json_encode([$form['settings']['campaign'], $form['settings']['payment'] ?? []]));
+    if (is_array($cached) && ($cached['_settings'] ?? '') === $settings) {
+      unset($cached['_settings']);
       return $cached;
     }
     $data = self::compute($form);
-    set_transient($key, $data, self::CACHE_TTL);
+    set_transient($key, $data + ['_settings' => $settings], self::CACHE_TTL);
     return $data;
   }
 
@@ -65,7 +70,7 @@ final class Totals {
       "SELECT e.id, e.form_version, e.data_json, e.amount, MIN(p.created_at) AS first_paid
        FROM {$payments} p JOIN {$entries} e ON e.id = p.entry_id WHERE {$where}
        GROUP BY e.id, e.form_version, e.data_json, e.amount ORDER BY first_paid DESC, e.id DESC LIMIT %d",
-      ...array_merge($params, [self::RECENT])
+      ...array_merge($params, [max(1, min(self::MAX_RECENT, (int) ($campaign['max_donors'] ?? 50)))])
     ), ARRAY_A);
 
     $schemas = [];
@@ -105,11 +110,31 @@ final class Totals {
     $where = "e.form_id = %d AND e.status NOT IN ('spam', 'trash', 'refunded')
       AND p.kind IN ('charge', 'renewal') AND p.status IN ('approved', 'partially_refunded')
       AND (p.gateway = 'offline' OR p.mode = %s" . ($mode === 'live' ? " OR p.mode = ''" : '') . ')';
-    return [$where, [(int) $form['id'], $mode]];
+    $params = [(int) $form['id'], $mode];
+    $since = self::sinceUtc((string) ($form['settings']['campaign']['since'] ?? ''));
+    if ($since !== NULL) {
+      // By payment date: a monthly gift started earlier counts from its
+      // first renewal on or after the start day.
+      $where .= ' AND p.created_at >= %s';
+      $params[] = $since;
+    }
+    return [$where, $params];
   }
 
   private static function cacheKey(int $formId): string {
     return 'embed_forms_campaign_' . $formId;
+  }
+
+  /**
+   * The first moment counted, in UTC: midnight of the campaign's start day
+   * in the site's time zone, or NULL to count everything.
+   */
+  public static function sinceUtc(string $since): ?string {
+    if ($since === '') {
+      return NULL;
+    }
+    $local = new \DateTimeImmutable($since . ' 00:00:00', wp_timezone());
+    return $local->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
   }
 
 }

@@ -114,6 +114,16 @@ final class Module {
         </fieldset></td>
       </tr>
       <tr>
+        <th scope="row"><label for="ef-max-donors"><?php esc_html_e('Donors listed', 'embed-forms'); ?></label></th>
+        <td><?php esc_html_e('The most recent', 'embed-forms'); ?> <input type="number" min="1" max="<?php echo (int) Totals::MAX_RECENT; ?>" id="ef-max-donors" name="settings[campaign][max_donors]" value="<?php echo (int) $c['max_donors']; ?>" class="small-text">
+          <p class="description"><?php esc_html_e('How many donors the donor list and its notices show. The total and donor count always include everyone.', 'embed-forms'); ?></p></td>
+      </tr>
+      <tr>
+        <th scope="row"><label for="ef-since"><?php esc_html_e('Count from', 'embed-forms'); ?></label></th>
+        <td><input type="date" id="ef-since" name="settings[campaign][since]" value="<?php echo esc_attr($c['since']); ?>">
+          <p class="description"><?php esc_html_e('Only donations made on or after this day count, for the total, the donor count and the list. Leave empty to count every donation this form ever took. A recurring gift started earlier counts its payments from this day on.', 'embed-forms'); ?></p></td>
+      </tr>
+      <tr>
         <th scope="row"><label for="ef-offset"><?php esc_html_e('Raised elsewhere', 'embed-forms'); ?></label></th>
         <td>$ <input type="text" inputmode="decimal" id="ef-offset" name="settings[campaign][offset_amount]" value="<?php echo esc_attr($c['offset_amount']); ?>" style="width:10em">
           <?php esc_html_e('from', 'embed-forms'); ?> <input type="number" min="0" name="settings[campaign][offset_donors]" value="<?php echo (int) $c['offset_donors']; ?>" class="small-text" aria-label="<?php esc_attr_e('Donors elsewhere', 'embed-forms'); ?>"> <?php esc_html_e('donors', 'embed-forms'); ?>

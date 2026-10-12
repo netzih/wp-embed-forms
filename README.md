@@ -119,6 +119,10 @@ public donor list for a campaign page:
   (only if the campaign shows them; never a city for anonymous donors),
   `frequency`, `at`, and an opaque `id`. Nothing else about the person is
   published.
+- **Donors listed** sets how many recent donors the list carries (default
+  50, at most 200); **Count from** limits the total, the donor count and
+  the list to payments made on or after a day (site time zone), so a form
+  reused for a new campaign starts from zero.
 - It counts approved charges and renewals less refunds, in the
   processor's current mode (test payments only while the form is in test
   mode), plus offline donations, plus the "Raised elsewhere" offsets. Cached

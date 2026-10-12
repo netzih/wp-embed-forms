@@ -91,6 +91,11 @@ final class FormSettings {
         // Raised elsewhere before or outside this form.
         'offset_amount' => '',
         'offset_donors' => 0,
+        // How many recent donors the list shows (1 to Totals::MAX_RECENT).
+        'max_donors' => 50,
+        // Count only donations from this day on (Y-m-d, the site's time
+        // zone), for the total and the list alike; '' counts all.
+        'since' => '',
       ],
     ];
   }
@@ -165,6 +170,8 @@ final class FormSettings {
         'name_fallback' => in_array($campaign['name_fallback'] ?? NULL, self::NAME_FALLBACKS, TRUE) ? $campaign['name_fallback'] : $d['campaign']['name_fallback'],
         'offset_amount' => self::money($campaign['offset_amount'] ?? ''),
         'offset_donors' => max(0, (int) ($campaign['offset_donors'] ?? 0)),
+        'max_donors' => max(1, min(200, (int) ($campaign['max_donors'] ?? $d['campaign']['max_donors']) ?: $d['campaign']['max_donors'])),
+        'since' => self::date($campaign['since'] ?? ''),
       ],
     ];
   }
@@ -178,6 +185,12 @@ final class FormSettings {
       return '#' . $m[1] . $m[1] . $m[2] . $m[2] . $m[3] . $m[3];
     }
     return preg_match('/^#?([0-9a-f]{6})$/', $value, $m) ? '#' . $m[1] : '';
+  }
+
+  private static function date(mixed $value): string {
+    $value = is_scalar($value) ? trim((string) $value) : '';
+    $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    return $date && $date->format('Y-m-d') === $value ? $value : '';
   }
 
   private static function money(mixed $value): string {

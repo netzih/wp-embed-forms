@@ -76,6 +76,19 @@ final class CampaignTest extends TestCase {
     self::assertNull($donor['city'], 'An anonymous donor\'s city is never shown.');
   }
 
+  public function testDonorLimitAndStartDate(): void {
+    $d = FormSettings::normalize(NULL)['campaign'];
+    self::assertSame(50, $d['max_donors']);
+    self::assertSame('', $d['since']);
+    $s = FormSettings::normalize(['campaign' => ['max_donors' => '12', 'since' => '2026-11-01']])['campaign'];
+    self::assertSame(12, $s['max_donors']);
+    self::assertSame('2026-11-01', $s['since']);
+    self::assertSame(200, FormSettings::normalize(['campaign' => ['max_donors' => '5000']])['campaign']['max_donors']);
+    self::assertSame(50, FormSettings::normalize(['campaign' => ['max_donors' => '']])['campaign']['max_donors']);
+    self::assertSame('', FormSettings::normalize(['campaign' => ['since' => '2026-02-31']])['campaign']['since']);
+    self::assertSame('', FormSettings::normalize(['campaign' => ['since' => "2026-11-01' OR 1=1"]])['campaign']['since']);
+  }
+
   public function testCampaignAndDesignSettings(): void {
     $d = FormSettings::normalize(NULL);
     self::assertFalse($d['campaign']['enabled']);
