@@ -283,6 +283,10 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 .ef-designed .ef-amount .ef-chip { font-family: var(--ef-heading-font); font-weight: 600; font-size: 18px; }
 @media (min-width: 541px) {
   .ef-designed .ef-amount-choices .ef-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* A short last row stretches to fill, as on phones. */
+  .ef-designed .ef-amount-choices .ef-chip:last-child:nth-child(4n+1) { grid-column: 1 / -1; }
+  .ef-designed .ef-amount-choices .ef-chip:last-child:nth-child(4n+2) { grid-column: span 3; }
+  .ef-designed .ef-amount-choices .ef-chip:last-child:nth-child(4n+3) { grid-column: span 2; }
 }
 .ef-chip:focus-visible { box-shadow: 0 0 0 4px var(--ef-ring); }
 .ef-has-error .ef-chip { border-color: var(--ef-error); }
