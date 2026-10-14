@@ -76,6 +76,14 @@ final class CampaignTest extends TestCase {
     self::assertNull($donor['city'], 'An anonymous donor\'s city is never shown.');
   }
 
+  public function testOwnAddressDomain(): void {
+    $clean = [\EmbedForms\Render\PageTemplate::class, 'cleanDomain'];
+    self::assertSame('give.youngshluchim.org', $clean(' https://Give.YoungShluchim.org/give?x=1 '));
+    self::assertSame('', $clean('localhost'));
+    self::assertSame('', $clean('evil.org"><script>'));
+    self::assertSame('', $clean(''));
+  }
+
   public function testDonorLimitAndStartDate(): void {
     $d = FormSettings::normalize(NULL)['campaign'];
     self::assertSame(50, $d['max_donors']);

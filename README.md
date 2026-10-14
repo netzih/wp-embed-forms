@@ -140,7 +140,13 @@ public donor list for a campaign page:
 **Embed Forms: Full page** is a page template any theme gets: the page
 content alone, without the theme's header, footer or stylesheets (core
 and plugin styles and `wp_head`/`wp_footer` stay), for campaign pages that
-bring their own design in a Custom HTML block.
+bring their own design in a Custom HTML block. A page made only of Custom HTML
+blocks also leaves out other plugins' scripts and styles, the Customizer's
+Additional CSS and the emoji script (filter
+`embed_forms_full_page_clean`). Its **Own address** box (page editor
+sidebar) serves the page at the root of another domain pointed at this
+site, such as a Plesk domain alias: other paths there go to the same path
+on this site, and forms, the REST API and logins keep working.
 
 ## Entries: editing and offline donations
 
