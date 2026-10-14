@@ -80,10 +80,23 @@
     frames[id] = { iframe: iframe, el: el, origin: new URL(base, window.location.href).origin };
   }
 
+  // Whether the parser is done with an element: something follows it.
+  function parsed(el) {
+    for (var node = el; node && node !== document; node = node.parentNode) {
+      if (node.nextSibling) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function scan() {
+    var loading = document.readyState === 'loading';
     var nodes = document.querySelectorAll('[data-embed-form]');
     for (var i = 0; i < nodes.length; i++) {
-      mount(nodes[i]);
+      if (!loading || parsed(nodes[i])) {
+        mount(nodes[i]);
+      }
     }
   }
 
@@ -136,9 +149,11 @@
 
   window.EmbedFormsLoader = { scan: scan, mount: mount };
 
+  // Placeholders already parsed start loading now (an async script often
+  // runs well before the rest of the page is parsed); later ones at
+  // DOMContentLoaded.
+  scan();
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', scan);
-  } else {
-    scan();
   }
 }(window, document));
