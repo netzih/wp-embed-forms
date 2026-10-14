@@ -151,7 +151,15 @@ final class PageTemplate {
   public function ownAddress(array $query): array {
     $host = self::requestHost();
     $map = get_option(self::DOMAINS_OPTION, []);
-    if ($host === '' || !is_array($map) || empty($map[$host])) {
+    if ($host === '' || !is_array($map)) {
+      return $query;
+    }
+    // www. in front of an own address goes to the address itself.
+    if (empty($map[$host]) && str_starts_with($host, 'www.') && !empty($map[substr($host, 4)])) {
+      wp_redirect('https://' . substr($host, 4) . (string) ($_SERVER['REQUEST_URI'] ?? '/'), 301);
+      exit;
+    }
+    if (empty($map[$host])) {
       return $query;
     }
     $path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
