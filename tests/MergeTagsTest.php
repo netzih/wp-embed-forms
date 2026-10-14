@@ -41,6 +41,11 @@ final class MergeTagsTest extends TestCase {
     self::assertStringNotContainsString('<script>', $html);
   }
 
+  public function testTagNamesWithDigits(): void {
+    $context = ['extra' => ['card_last4' => '4242']] + $this->context();
+    self::assertSame('Visa ending in 4242', MergeTags::replace('Visa ending in {card_last4}', $context, FALSE));
+  }
+
   public function testCsvCellsCannotBeFormulas(): void {
     self::assertSame("'=SUM(A1)", CsvExport::cell('=SUM(A1)'));
     self::assertSame("'+1", CsvExport::cell('+1'));

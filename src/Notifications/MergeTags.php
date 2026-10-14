@@ -51,7 +51,7 @@ final class MergeTags {
 
     $htmlTags = $context['extra_html'] ?? [];
 
-    return preg_replace_callback('/\{([a-z_]+)(?::([a-z0-9_]+))?(?::([a-z0-9]+))?\}/', static function (array $m) use ($schema, $values, $simple, $escape, $html, $htmlTags): string {
+    return preg_replace_callback('/\{([a-z][a-z0-9_]*)(?::([a-z0-9_]+))?(?::([a-z0-9]+))?\}/', static function (array $m) use ($schema, $values, $simple, $escape, $html, $htmlTags): string {
       $tag = $m[1];
       if (array_key_exists($tag, $htmlTags) && !isset($m[2])) {
         // Built as HTML by this plugin; in text contexts only its words.
