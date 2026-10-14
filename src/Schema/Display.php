@@ -47,6 +47,9 @@ final class Display {
       case 'frequency':
         return Fields::frequencyLabel((string) $value);
 
+      case 'anonymous':
+        return $value === '1' ? __('Yes', 'embed-forms') : __('No', 'embed-forms');
+
       default:
         return is_scalar($value) ? (string) $value : '';
     }

@@ -24,7 +24,14 @@ final class EntriesScreen {
   /**
    * Bulk actions arrive as a GET of this page (the list table's form).
    */
+  private ?EntryEditor $editor = NULL;
+
   public function load(): void {
+    if (EntryEditor::wants()) {
+      $this->editor = new EntryEditor();
+      $this->editor->load();
+      return;
+    }
     $action = $this->bulkAction();
     if ($action === '' || empty($_GET['entries'])) {
       return;
@@ -33,6 +40,9 @@ final class EntriesScreen {
     check_admin_referer('bulk-entries');
     $ids = array_map('intval', (array) $_GET['entries']);
     $map = ['spam' => 'spam', 'notspam' => 'submitted', 'trash' => 'trash', 'restore' => 'submitted'];
+    if (!empty($_GET['form'])) {
+      do_action('embed_forms_entry_changed', (int) $_GET['form']);
+    }
     foreach ($ids as $id) {
       if ($action === 'delete') {
         $entry = Entries::find($id);
@@ -75,6 +85,10 @@ final class EntriesScreen {
 
   public function render(): void {
     Menu::requireCapability();
+    if (EntryEditor::wants()) {
+      ($this->editor ?? new EntryEditor())->render();
+      return;
+    }
     if (!empty($_GET['entry'])) {
       $this->detail((int) $_GET['entry']);
       return;
@@ -85,6 +99,9 @@ final class EntriesScreen {
     ?>
     <div class="wrap">
       <h1 class="wp-heading-inline"><?php esc_html_e('Entries', 'embed-forms'); ?></h1>
+      <?php if ($form) : ?>
+        <a class="page-title-action" href="<?php echo esc_url(EntryEditor::addUrl((int) $form['id'])); ?>"><?php esc_html_e('Add offline donation', 'embed-forms'); ?></a>
+      <?php endif; ?>
       <hr class="wp-header-end">
       <?php Menu::renderFlash(); ?>
       <?php if (!$forms) : ?>
@@ -191,6 +208,9 @@ final class EntriesScreen {
                 <a class="button button-link-delete" href="<?php echo esc_url(Menu::actionUrl('embed_forms_entry_status', ['entry' => $id, 'to' => 'trash'])); ?>"><?php esc_html_e('Move to Trash', 'embed-forms'); ?></a>
               <?php endif; ?>
               <a class="button" href="<?php echo esc_url(Menu::actionUrl('embed_forms_entry_resend', ['entry' => $id])); ?>"><?php esc_html_e('Resend emails', 'embed-forms'); ?></a>
+              <?php if ($entry['status'] !== 'trash') : ?>
+                <a class="button button-primary" href="<?php echo esc_url(EntryEditor::editUrl($id)); ?>"><?php esc_html_e('Edit entry', 'embed-forms'); ?></a>
+              <?php endif; ?>
             </div>
           </div>
           <?php do_action('embed_forms_entry_sidebar', $entry, $form); ?>
@@ -209,6 +229,7 @@ final class EntriesScreen {
     $map = ['spam' => 'spam', 'notspam' => 'submitted', 'trash' => 'trash', 'restore' => 'submitted'];
     if ($entry && isset($map[$to])) {
       Entries::setStatus($id, $this->restoredStatus($entry, $map[$to]));
+      do_action('embed_forms_entry_changed', (int) $entry['form_id']);
       Menu::flash(__('Entry updated.', 'embed-forms'));
     }
     $target = $to === 'trash' && $entry ? Menu::entriesUrl(['form' => $entry['form_id']]) : Menu::entriesUrl(['entry' => $id]);
@@ -223,6 +244,7 @@ final class EntriesScreen {
     $entry = Entries::find($id);
     if ($entry && $entry['status'] === 'trash') {
       Entries::delete($id);
+      do_action('embed_forms_entry_changed', (int) $entry['form_id']);
       Menu::flash(__('Entry deleted.', 'embed-forms'));
     }
     wp_safe_redirect(Menu::entriesUrl($entry ? ['form' => $entry['form_id']] : []));

@@ -20,6 +20,11 @@ final class Processor {
   public const STRIPE = 'stripe';
 
   /**
+   * Donations recorded by hand (cash, check, wire): never sent anywhere.
+   */
+  public const OFFLINE = 'offline';
+
+  /**
    * @return array{gateway: string, account: string}
    */
   public static function forForm(array $form): array {
@@ -95,6 +100,9 @@ final class Processor {
    * For the admin: "USAePay (Default account)", "Stripe (Camp)".
    */
   public static function label(string $gateway, string $account): string {
+    if ($gateway === self::OFFLINE) {
+      return __('Offline', 'embed-forms');
+    }
     if ($gateway === self::STRIPE) {
       $accounts = Settings::stripeAccounts();
       return sprintf(__('Stripe (%s)', 'embed-forms'), $accounts[$account]['label'] ?? ($account !== '' ? $account : __('no account', 'embed-forms')));

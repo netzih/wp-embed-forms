@@ -36,3 +36,11 @@
 .ef-status-cancelled { background: #e0e0e0; color: #3c434a; }
 .ef-accents label { display: inline-flex; align-items: center; gap: 6px; margin: 0 16px 6px 0; }
 .ef-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 50%; }
+
+/* Entry editor */
+.ef-entry-editor .ef-has-error input, .ef-entry-editor .ef-has-error select, .ef-entry-editor .ef-has-error textarea { border-color: #d63638; }
+.ef-field-error { color: #d63638; margin: 4px 0 0; }
+.ef-admin-parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; max-width: 720px; }
+.ef-admin-parts label { display: grid; gap: 2px; }
+.ef-admin-parts small { color: #646970; }
+.ef-accents .ef-color { vertical-align: middle; width: 44px; height: 28px; padding: 0 2px; }

@@ -13,7 +13,18 @@ final class FormSettings {
   /**
    * Accent colours a form may use; form.css defines each as ef-accent-*.
    */
-  public const ACCENTS = ['blue', 'teal', 'green', 'violet', 'rose', 'ink'];
+  public const ACCENTS = ['blue', 'teal', 'green', 'violet', 'rose', 'ink', 'custom'];
+
+  /**
+   * Fonts a form may use (Render\Design::FONTS has their families).
+   */
+  public const FONTS = ['geist', 'system', 'inter', 'dm-sans', 'nunito', 'poppins', 'lora', 'merriweather', 'baloo-2', 'playfair-display'];
+
+  public const LAYOUTS = ['card', 'plain'];
+
+  public const CORNERS = ['soft', 'round'];
+
+  public const NAME_FALLBACKS = ['initial', 'anonymous'];
 
   public const PROCESSORS = ['usaepay', 'stripe'];
 
@@ -23,6 +34,15 @@ final class FormSettings {
       'show_title' => TRUE,
       'description' => '',
       'accent' => 'blue',
+      // With accent 'custom': the brand colour, #rrggbb.
+      'accent_color' => '',
+      'font' => 'geist',
+      // Empty uses the body font.
+      'heading_font' => '',
+      // 'plain' drops the card (border, shadow, padding) so a form embedded
+      // in a designed page sits on that page's own card.
+      'layout' => 'card',
+      'corners' => 'soft',
       'confirmation' => [
         'type' => 'message',
         'message' => 'Thank you! Your submission has been received.',
@@ -59,6 +79,24 @@ final class FormSettings {
       'renewal_receipts' => TRUE,
       'max_entries' => 0,
       'closed_message' => 'This form is no longer accepting submissions.',
+      // A public donor list and running total, read by assets/campaign.js.
+      'campaign' => [
+        'enabled' => FALSE,
+        'goal' => '',
+        'show_amounts' => TRUE,
+        'show_city' => FALSE,
+        // For a donor who left the display name blank: 'initial' shows the
+        // first name and last initial, 'anonymous' shows Anonymous.
+        'name_fallback' => 'initial',
+        // Raised elsewhere before or outside this form.
+        'offset_amount' => '',
+        'offset_donors' => 0,
+        // How many recent donors the list shows (1 to Totals::MAX_RECENT).
+        'max_donors' => 50,
+        // Count only donations from this day on (Y-m-d, the site's time
+        // zone), for the total and the list alike; '' counts all.
+        'since' => '',
+      ],
     ];
   }
 
@@ -72,6 +110,7 @@ final class FormSettings {
     $confirmation = is_array($in['confirmation'] ?? NULL) ? $in['confirmation'] : [];
     $autoresponder = is_array($in['autoresponder'] ?? NULL) ? $in['autoresponder'] : [];
     $payment = is_array($in['payment'] ?? NULL) ? $in['payment'] : [];
+    $campaign = is_array($in['campaign'] ?? NULL) ? $in['campaign'] : [];
     $fromEmail = strtolower(self::line($in['from_email'] ?? ''));
 
     $notifications = [];
@@ -93,6 +132,11 @@ final class FormSettings {
       'show_title' => array_key_exists('show_title', $in) ? !empty($in['show_title']) : $d['show_title'],
       'description' => (string) ($in['description'] ?? ''),
       'accent' => in_array($in['accent'] ?? NULL, self::ACCENTS, TRUE) ? $in['accent'] : $d['accent'],
+      'accent_color' => self::color($in['accent_color'] ?? ''),
+      'font' => in_array($in['font'] ?? NULL, self::FONTS, TRUE) ? $in['font'] : $d['font'],
+      'heading_font' => in_array($in['heading_font'] ?? NULL, self::FONTS, TRUE) ? $in['heading_font'] : '',
+      'layout' => in_array($in['layout'] ?? NULL, self::LAYOUTS, TRUE) ? $in['layout'] : $d['layout'],
+      'corners' => in_array($in['corners'] ?? NULL, self::CORNERS, TRUE) ? $in['corners'] : $d['corners'],
       'confirmation' => [
         'type' => ($confirmation['type'] ?? 'message') === 'redirect' ? 'redirect' : 'message',
         'message' => (string) ($confirmation['message'] ?? $d['confirmation']['message']),
@@ -118,7 +162,40 @@ final class FormSettings {
       'renewal_receipts' => array_key_exists('renewal_receipts', $in) ? !empty($in['renewal_receipts']) : $d['renewal_receipts'],
       'max_entries' => max(0, (int) ($in['max_entries'] ?? 0)),
       'closed_message' => (string) ($in['closed_message'] ?? $d['closed_message']),
+      'campaign' => [
+        'enabled' => !empty($campaign['enabled']),
+        'goal' => self::money($campaign['goal'] ?? ''),
+        'show_amounts' => array_key_exists('show_amounts', $campaign) ? !empty($campaign['show_amounts']) : $d['campaign']['show_amounts'],
+        'show_city' => !empty($campaign['show_city']),
+        'name_fallback' => in_array($campaign['name_fallback'] ?? NULL, self::NAME_FALLBACKS, TRUE) ? $campaign['name_fallback'] : $d['campaign']['name_fallback'],
+        'offset_amount' => self::money($campaign['offset_amount'] ?? ''),
+        'offset_donors' => max(0, (int) ($campaign['offset_donors'] ?? 0)),
+        'max_donors' => max(1, min(200, (int) ($campaign['max_donors'] ?? $d['campaign']['max_donors']) ?: $d['campaign']['max_donors'])),
+        'since' => self::date($campaign['since'] ?? ''),
+      ],
     ];
+  }
+
+  /**
+   * A #rrggbb colour (also accepts #rgb), lower case, or ''.
+   */
+  public static function color(mixed $value): string {
+    $value = is_scalar($value) ? strtolower(trim((string) $value)) : '';
+    if (preg_match('/^#?([0-9a-f])([0-9a-f])([0-9a-f])$/', $value, $m)) {
+      return '#' . $m[1] . $m[1] . $m[2] . $m[2] . $m[3] . $m[3];
+    }
+    return preg_match('/^#?([0-9a-f]{6})$/', $value, $m) ? '#' . $m[1] : '';
+  }
+
+  private static function date(mixed $value): string {
+    $value = is_scalar($value) ? trim((string) $value) : '';
+    $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    return $date && $date->format('Y-m-d') === $value ? $value : '';
+  }
+
+  private static function money(mixed $value): string {
+    $amount = \EmbedForms\Payments\Money::normalize(is_scalar($value) ? str_replace([',', '$', ' '], '', (string) $value) : '');
+    return $amount === NULL || $amount === '0.00' ? '' : $amount;
   }
 
   /**

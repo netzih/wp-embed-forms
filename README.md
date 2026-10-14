@@ -88,12 +88,81 @@ address parts from `<param>_first`, `<param>_city`, ...). A
 
 `text`, `textarea`, `email`, `phone`, `number`, `select`, `radio`,
 `checkbox`, `date`, `name`, `address`, `hidden`, plus layout: `html`,
-`section`, `page` (starts a new step), and payment: `amount`, `product`,
-`frequency`, `total`, `payment` (the card).
+`section`, `page` (starts a new step), payment: `amount`, `product`,
+`frequency`, `total`, `payment` (the card), and donor list:
+`display_name` (how the person appears on a campaign's donor list) and
+`anonymous` (one box; hides the name). A form holds at most one of each.
 
 The builder (`assets/builder.js`) runs on WordPress's bundled React and
 components, so there is no build step. **Edit as JSON** shows the whole
 definition for copying between forms or bulk edits.
+
+### Design
+
+Per form (Settings tab): a preset accent or any **brand colour** (button
+text turns dark on light colours), the **fonts** for text and for
+headings/amounts (Geist and System are local, the rest load from Google
+Fonts; the Stripe card field uses the text font too), **On its own card**
+or **Plain** (embedded without a card, for a page that already puts the
+form on one), and soft or **round** corners. A form that changes none of
+these looks exactly as before.
+
+## Campaigns
+
+**Settings > Campaign > Donor list** publishes a form's running total and
+public donor list for a campaign page:
+
+- `GET /wp-json/embed-forms/v1/forms/<id>/campaign` answers (only while the
+  campaign is on) with `raised`, `goal`, `percent`, `donors` and up to 50
+  `recent` donors: `name` (the display name; else the first name and last
+  initial, or Anonymous, per the setting), `anonymous`, `amount` and `city`
+  (only if the campaign shows them; never a city for anonymous donors),
+  `frequency`, `at`, and an opaque `id`. Nothing else about the person is
+  published.
+- **Donors listed** sets how many recent donors the list carries (default
+  50, at most 200); **Count from** limits the total, the donor count and
+  the list to payments made on or after a day (site time zone), so a form
+  reused for a new campaign starts from zero.
+- It counts approved charges and renewals less refunds, in the
+  processor's current mode (test payments only while the form is in test
+  mode), plus offline donations, plus the "Raised elsewhere" offsets. Cached
+  for a minute and dropped when a payment, refund, edit or status change
+  touches the form.
+- `assets/campaign.js` on any page fills `data-ef-raised`, `data-ef-goal`,
+  `data-ef-donors`, `data-ef-percent`, `data-ef-progress` (width) and a
+  simple `data-ef-donor-list` inside `<div data-ef-campaign="ID">`,
+  refreshes every 30 seconds and right after a donation in an embedded
+  form, and fires `embedforms:campaign` (all data) and
+  `embedforms:donation` (each new donor) for pages that draw their own
+  donor wall. The editor shows a starter snippet.
+- The public form previews the name under the display name field.
+
+**Embed Forms: Full page** is a page template any theme gets: the page
+content alone, without the theme's header, footer or stylesheets (core
+and plugin styles and `wp_head`/`wp_footer` stay), for campaign pages that
+bring their own design in a Custom HTML block. A page made only of Custom HTML
+blocks also leaves out other plugins' scripts and styles, the Customizer's
+Additional CSS and the emoji script (filter
+`embed_forms_full_page_clean`). Its **Own address** box (page editor
+sidebar) serves the page at the root of another domain pointed at this
+site, such as a Plesk domain alias: other paths there go to the same path
+on this site, and forms, the REST API and logins keep working.
+
+## Entries: editing and offline donations
+
+- **Edit entry** (entry screen, or the list's row action) changes the
+  answers; each change is written to the history with who made it. An
+  online payment's amount, product and frequency stay as charged (refunds
+  are on the entry screen). Required fields may be left empty.
+- **Add offline donation** (Entries, per form) records a check, cash, bank
+  transfer, donor-advised fund, stock or other gift: amount, reference,
+  date received, an internal note and the form's answers, optionally
+  sending the form's emails. It is an approved payment on the `offline`
+  processor, so it counts in totals, exports and the donor list; it is
+  never sent to a processor and cannot be refunded here (edit or trash the
+  entry instead). Hooks: `embed_forms_entry_submitted`,
+  `embed_forms_offline_donation_added` (payment, entry, form);
+  `embed_forms_entry_edited` (entry, form, changes) after an edit.
 
 ## Payments
 

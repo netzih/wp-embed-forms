@@ -216,6 +216,14 @@ final class FormSchema {
     if ($type === 'total') {
       $field['help'] = self::text($in['help'] ?? '', 2000);
     }
+    if ($type === 'display_name') {
+      $field['max'] = max(1, min(120, (int) ($in['max'] ?? 60) ?: 60));
+    }
+    if ($type === 'anonymous') {
+      // A single box: the label is its text, so it is never "required".
+      $field['required'] = FALSE;
+      $field['default'] = self::isYes($field['default']) ? '1' : '';
+    }
     $conditions = self::conditions($in['conditions'] ?? NULL);
     if ($conditions) {
       $field['conditions'] = $conditions;
@@ -277,6 +285,10 @@ final class FormSchema {
       return is_array($value) ? array_map(static fn($v) => self::text($v, 255), $value) : [];
     }
     return is_scalar($value) ? self::text($value, 2000) : '';
+  }
+
+  public static function isYes(mixed $value): bool {
+    return is_scalar($value) && in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], TRUE);
   }
 
   private static function id(string $id): string {

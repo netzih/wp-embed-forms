@@ -339,10 +339,11 @@
       return;
     }
     stripe.client = Stripe(P.publishableKey);
-    stripe.element = stripe.client.elements().create('card', {
+    var font = P.font || {};
+    stripe.element = stripe.client.elements(font.cssSrc ? { fonts: [{ cssSrc: font.cssSrc }] } : {}).create('card', {
       // Matches .ef-input.
       style: {
-        base: { fontSize: '16px', lineHeight: '46px', color: '#1d1b18', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', '::placeholder': { color: '#8a857d' } },
+        base: { fontSize: '16px', lineHeight: '46px', color: '#1d1b18', fontFamily: font.family || 'system-ui, -apple-system, "Segoe UI", sans-serif', '::placeholder': { color: '#8a857d' } },
         invalid: { color: '#b32228', iconColor: '#b32228' }
       }
     });

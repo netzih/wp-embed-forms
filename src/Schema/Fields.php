@@ -29,6 +29,8 @@ final class Fields {
     'amount' => 'string',
     'product' => 'string',
     'frequency' => 'string',
+    'display_name' => 'string',
+    'anonymous' => 'string',
   ];
 
   /**
@@ -45,7 +47,13 @@ final class Fields {
   /**
    * Types a form may hold only once.
    */
-  public const SINGLE = ['frequency', 'payment'];
+  public const SINGLE = ['frequency', 'payment', 'display_name', 'anonymous'];
+
+  /**
+   * Types that say how the person appears on a campaign's public donor
+   * list: the name to show, and the choice to give anonymously.
+   */
+  public const DONOR_TYPES = ['display_name', 'anonymous'];
 
   /**
    * Payment intervals a frequency field can offer; 'once' is a one-time
@@ -87,6 +95,8 @@ final class Fields {
       'frequency' => $p(__('Frequency', 'embed-forms'), 'payment', 'update'),
       'total' => $p(__('Total', 'embed-forms'), 'payment', 'chart-bar'),
       'payment' => $p(__('Card payment', 'embed-forms'), 'payment', 'id'),
+      'display_name' => $p(__('Display name', 'embed-forms'), 'donor', 'megaphone'),
+      'anonymous' => $p(__('Give anonymously', 'embed-forms'), 'donor', 'hidden'),
     ];
   }
 

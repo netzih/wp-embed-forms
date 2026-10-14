@@ -26,7 +26,7 @@ final class Refunds {
    */
   public static function refund(int $paymentId, ?string $amount = NULL): array {
     $payment = Payments::find($paymentId);
-    if (!$payment || !in_array($payment['kind'], ['charge', 'renewal'], TRUE) || !in_array($payment['status'], ['approved', 'partially_refunded'], TRUE)) {
+    if (!$payment || $payment['gateway'] === Processor::OFFLINE || !in_array($payment['kind'], ['charge', 'renewal'], TRUE) || !in_array($payment['status'], ['approved', 'partially_refunded'], TRUE)) {
       return ['ok' => FALSE, 'message' => __('That payment cannot be refunded.', 'embed-forms')];
     }
     $paid = Money::toCents((string) $payment['amount']) ?? 0;
