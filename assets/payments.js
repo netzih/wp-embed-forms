@@ -31,7 +31,7 @@
   var isStripe = P.processor === 'stripe';
   // Stripe: the card element, and whether the next submit finishes a
   // payment that stopped for the bank's check (3D Secure).
-  var stripe = { client: null, element: null, resume: false };
+  var stripe = { client: null, element: null, resume: false, waiting: false };
   var totals = [];
 
   // ---------------------------------------------------------------- money
@@ -334,6 +334,16 @@
   }
 
   function mountStripe() {
+    if (P.configured && P.publishableKey && typeof Stripe !== 'function') {
+      // Stripe.js loads async; mount once it has arrived.
+      var script = document.querySelector('script[src^="https://js.stripe.com/"]');
+      if (script && !stripe.waiting) {
+        stripe.waiting = true;
+        script.addEventListener('load', mountStripe);
+        script.addEventListener('error', mountStripe);
+        return;
+      }
+    }
     if (!P.configured || !P.publishableKey || typeof Stripe !== 'function') {
       cardError(i18n.notConfigured || 'Payments are not set up.');
       return;

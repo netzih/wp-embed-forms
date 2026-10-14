@@ -191,6 +191,14 @@ final class PublicPage {
     return apply_filters('embed_forms_page_config', $config, $form);
   }
 
+  /**
+   * Third-party scripts the form waits for itself (Stripe, Turnstile). They
+   * load async so the form does not wait for them before it can show.
+   */
+  private static function loadsAsync(string $src): bool {
+    return (bool) preg_match('#^https://(js\.stripe\.com|challenges\.cloudflare\.com)/#', $src);
+  }
+
   private function page(string $title, string $body, bool $embedded, ?array $config = NULL, bool $turnstile = FALSE): void {
     $plugin = Plugin::instance();
     $scripts = [];
@@ -231,7 +239,7 @@ final class PublicPage {
 <?php if ($config !== NULL) : ?>
 <script>window.EmbedFormsConfig = <?php echo wp_json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?>;</script>
 <?php foreach ($scripts as $src) : ?>
-<script src="<?php echo esc_url($src); ?>"></script>
+<script src="<?php echo esc_url($src); ?>"<?php echo self::loadsAsync($src) ? ' async' : ''; ?>></script>
 <?php endforeach; ?>
 <?php elseif ($embedded) : ?>
 <script>
