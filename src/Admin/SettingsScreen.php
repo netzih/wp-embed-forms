@@ -6,7 +6,7 @@ use EmbedForms\Settings;
 
 /**
  * Embed Forms > Settings: Turnstile keys, email sender, limits, Stripe
- * accounts.
+ * accounts, the Google service account for Google Sheets.
  */
 final class SettingsScreen {
 
@@ -77,6 +77,7 @@ final class SettingsScreen {
         <?php endif; ?>
 
         <?php $this->renderStripe($s, $name); ?>
+        <?php $this->renderGoogle($name); ?>
         <?php submit_button(); ?>
       </form>
     </div>
@@ -133,6 +134,31 @@ final class SettingsScreen {
         <?php endforeach; ?>
       </table>
     <?php endforeach;
+  }
+
+  private function renderGoogle(string $name): void {
+    $account = Settings::googleServiceAccount();
+    ?>
+    <h2><?php esc_html_e('Google Sheets', 'embed-forms'); ?></h2>
+    <p class="description"><?php esc_html_e('Forms can add a row to a Google Sheet for every new entry (each form\'s Settings > Google Sheets). They write as a Google Cloud service account: in console.cloud.google.com, create a project, enable the Google Sheets API, create a service account under IAM & Admin > Service accounts, and add a JSON key to it (Keys > Add key). Paste the key file\'s contents here. Then share each spreadsheet with the service account\'s email as Editor.', 'embed-forms'); ?></p>
+    <table class="form-table" role="presentation">
+      <?php if ($account) : ?>
+        <tr>
+          <th scope="row"><?php esc_html_e('Service account', 'embed-forms'); ?></th>
+          <td><code><?php echo esc_html($account['client_email']); ?></code>
+            <p class="description"><?php esc_html_e('Share spreadsheets with this address as Editor.', 'embed-forms'); ?></p></td>
+        </tr>
+      <?php endif; ?>
+      <tr>
+        <th scope="row"><label for="ef-google-key"><?php echo $account ? esc_html__('Replace the JSON key', 'embed-forms') : esc_html__('JSON key', 'embed-forms'); ?></label></th>
+        <td><textarea id="ef-google-key" name="<?php echo esc_attr($name); ?>[google_service_account]" rows="4" class="large-text code" autocomplete="off" spellcheck="false" placeholder="<?php echo $account ? esc_attr__('Saved (leave empty to keep)', 'embed-forms') : esc_attr('{ "type": "service_account", … }'); ?>"></textarea>
+          <?php if ($account) : ?>
+            <label><input type="checkbox" name="<?php echo esc_attr($name); ?>[google_clear_service_account]" value="1"> <?php esc_html_e('Remove the saved service account (forms stop sending to Google Sheets)', 'embed-forms'); ?></label>
+          <?php endif; ?>
+          <p class="description"><?php esc_html_e('The key is a password to the spreadsheets shared with the account: it is never shown again here.', 'embed-forms'); ?></p></td>
+      </tr>
+    </table>
+    <?php
   }
 
 }

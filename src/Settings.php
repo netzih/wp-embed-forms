@@ -23,6 +23,8 @@ final class Settings {
       'failed_payment_limit' => 5,
       'stripe_mode' => 'test',
       'stripe_accounts' => [],
+      // The JSON key of a Google Cloud service account, for Google Sheets.
+      'google_service_account' => '',
     ];
   }
 
@@ -56,6 +58,33 @@ final class Settings {
   public static function stripeKey(string $account, string $mode, string $kind): string {
     $prefix = $mode === 'live' ? 'live_' : 'test_';
     return trim((string) (self::stripeAccounts()[$account][$prefix . $kind . '_key'] ?? ''));
+  }
+
+  /**
+   * The saved Google service account's sign-in details, or NULL.
+   *
+   * @return ?array{client_email: string, private_key: string, private_key_id: string, token_uri: string, project_id: string}
+   */
+  public static function googleServiceAccount(): ?array {
+    return self::parseServiceAccount((string) self::get('google_service_account'));
+  }
+
+  /**
+   * The fields Embed Forms needs from a service account's JSON key, or NULL
+   * when it is not one.
+   */
+  public static function parseServiceAccount(string $json): ?array {
+    $key = json_decode(trim($json), TRUE);
+    if (!is_array($key) || ($key['type'] ?? '') !== 'service_account' || !filter_var((string) ($key['client_email'] ?? ''), FILTER_VALIDATE_EMAIL) || !str_contains((string) ($key['private_key'] ?? ''), 'PRIVATE KEY')) {
+      return NULL;
+    }
+    return [
+      'client_email' => (string) $key['client_email'],
+      'private_key' => (string) $key['private_key'],
+      'private_key_id' => (string) ($key['private_key_id'] ?? ''),
+      'token_uri' => (string) ($key['token_uri'] ?? ''),
+      'project_id' => (string) ($key['project_id'] ?? ''),
+    ];
   }
 
   public static function all(): array {
@@ -95,6 +124,22 @@ final class Settings {
     $out['failed_payment_limit'] = max(0, min(100, (int) ($input['failed_payment_limit'] ?? 5)));
     $out['stripe_mode'] = ($input['stripe_mode'] ?? '') === 'live' ? 'live' : 'test';
     $out['stripe_accounts'] = self::sanitizeStripeAccounts($input['stripe_accounts'] ?? [], self::stripeAccounts());
+    // A pasted key replaces the saved one (never printed back); an empty
+    // field keeps it.
+    $out['google_service_account'] = (string) $current['google_service_account'];
+    $pasted = trim((string) ($input['google_service_account'] ?? ''));
+    if ($pasted !== '') {
+      $account = self::parseServiceAccount($pasted);
+      if ($account) {
+        $out['google_service_account'] = (string) wp_json_encode(['type' => 'service_account'] + $account);
+      }
+      elseif (function_exists('add_settings_error')) {
+        add_settings_error(self::OPTION, 'google_service_account', __('That is not a service account JSON key, so the saved Google service account was kept.', 'embed-forms'));
+      }
+    }
+    if (!empty($input['google_clear_service_account'])) {
+      $out['google_service_account'] = '';
+    }
     self::$values = NULL;
     return $out;
   }

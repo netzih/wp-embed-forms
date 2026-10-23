@@ -107,6 +107,37 @@ or **Plain** (embedded without a card, for a page that already puts the
 form on one), and soft or **round** corners. A form that changes none of
 these looks exactly as before.
 
+## Google Sheets
+
+A form can add a row to a Google Sheet for every new entry (Settings >
+Google Sheets on the form).
+
+- **Setup, once:** in console.cloud.google.com create a project, enable the
+  Google Sheets API, create a service account (IAM & Admin > Service
+  accounts) and add a JSON key to it. Paste the key under **Embed Forms >
+  Settings > Google Sheets**; it is stored in the settings option and never
+  shown again. Then share each spreadsheet with the service account's email
+  as **Editor** and paste the spreadsheet's link into the form (optionally a
+  tab name; the first tab otherwise).
+- **What is sent:** entries that are submitted, or paid when the form takes
+  payments, and offline donations; not failed or unfinished payments.
+  Columns as in the CSV export (names and addresses in parts) without the
+  IP address, plus the transaction (marked "(test)" in test mode). Values
+  are written as they are (`RAW`), so nothing is run as a formula. Rows are
+  not updated afterwards.
+- **Columns** follow row 1 by name: an empty sheet gets the header, a field
+  added to the form gets a new column at the end, and columns may be
+  reordered or added in the sheet as long as the names stay.
+- **When:** from WP-Cron right after the submission (the person does not
+  wait for Google). A failed send is retried 5, 20, 45 and 80 minutes
+  later; the last result shows under the form's Google Sheets settings and
+  errors go to the PHP error log.
+- **Send all entries** in the editor sends the form's entries not yet in the
+  sheet (matched by the Entry column), for entries made before, or after a
+  send that never went through. Safe to repeat.
+- A duplicated form starts with sending off. Tests and test sites can
+  answer Google's calls with the `embed_forms_sheets_response` filter.
+
 ## Campaigns
 
 **Settings > Campaign > Donor list** publishes a form's running total and

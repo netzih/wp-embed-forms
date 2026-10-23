@@ -3,7 +3,7 @@
  * Plugin Name: Embed Forms
  * Plugin URI: https://github.com/netzih/wp-embed-forms
  * Description: Build forms in WordPress and embed them on any website with one script tag. Payments through USAePay (with the USAePay Payments plugin) or Stripe, per form.
- * Version: 0.4.0-beta.9
+ * Version: 0.4.0-beta.10
  * Requires at least: 6.4
  * Requires PHP: 8.1
  * Author: Chabad of Richmond
