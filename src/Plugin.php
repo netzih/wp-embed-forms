@@ -9,7 +9,7 @@ namespace EmbedForms;
  */
 final class Plugin {
 
-  public const VERSION = '0.4.0-beta.12';
+  public const VERSION = '0.4.0-beta.13';
 
   public const CAPABILITY = 'manage_options';
 
@@ -47,6 +47,7 @@ final class Plugin {
     (new Payments\Module())->register();
     (new Campaign\Module())->register();
     (new Sheets\Module())->register();
+    (new Sheet\Module())->register();
     (new Render\PageTemplate())->register();
     if (is_admin()) {
       (new Admin\Menu())->register();

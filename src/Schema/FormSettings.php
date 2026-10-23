@@ -6,7 +6,7 @@ namespace EmbedForms\Schema;
  * Per-form settings in canonical shape: confirmation, email notifications,
  * payer confirmation email and its sender, where the form may be embedded,
  * spam checks, which payment processor and account take its payments, and
- * the Google Sheet its entries go to.
+ * the Google Sheet its entries go to, and its shared entries page.
  * Pure PHP so it can be unit tested.
  */
 final class FormSettings {
@@ -106,6 +106,17 @@ final class FormSettings {
         // The tab's name; '' is the first tab.
         'tab' => '',
       ],
+      // A page with the form's entries behind a secret link and a password
+      // (Sheet\Module).
+      'sheet' => [
+        'enabled' => FALSE,
+        // People with the password may change answers.
+        'editable' => TRUE,
+        // The secret part of the link, 32 hex characters.
+        'token' => '',
+        // wp_hash_password() of the password.
+        'password_hash' => '',
+      ],
     ];
   }
 
@@ -121,6 +132,9 @@ final class FormSettings {
     $payment = is_array($in['payment'] ?? NULL) ? $in['payment'] : [];
     $campaign = is_array($in['campaign'] ?? NULL) ? $in['campaign'] : [];
     $sheets = is_array($in['sheets'] ?? NULL) ? $in['sheets'] : [];
+    $sheet = is_array($in['sheet'] ?? NULL) ? $in['sheet'] : [];
+    $token = is_string($sheet['token'] ?? NULL) && preg_match('/^[a-f0-9]{32}$/', $sheet['token']) ? $sheet['token'] : '';
+    $hash = is_string($sheet['password_hash'] ?? NULL) && str_starts_with($sheet['password_hash'], '$') ? substr($sheet['password_hash'], 0, 255) : '';
     $fromEmail = strtolower(self::line($in['from_email'] ?? ''));
 
     $notifications = [];
@@ -187,6 +201,13 @@ final class FormSettings {
         'enabled' => !empty($sheets['enabled']),
         'spreadsheet' => \EmbedForms\Sheets\Rows::spreadsheetId($sheets['spreadsheet'] ?? ''),
         'tab' => mb_substr(self::line($sheets['tab'] ?? ''), 0, 100),
+      ],
+      'sheet' => [
+        // Only with a link and a password.
+        'enabled' => !empty($sheet['enabled']) && $token !== '' && $hash !== '',
+        'editable' => array_key_exists('editable', $sheet) ? !empty($sheet['editable']) : $d['sheet']['editable'],
+        'token' => $token,
+        'password_hash' => $hash,
       ],
     ];
   }
