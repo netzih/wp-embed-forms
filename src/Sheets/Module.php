@@ -185,7 +185,7 @@ final class Module {
         <td>
           <input type="hidden" name="settings[sheets][enabled]" value="0">
           <label><input type="checkbox" name="settings[sheets][enabled]" value="1" <?php checked($sh['enabled']); ?>> <?php esc_html_e('Add a row to a Google Sheet for every new entry', 'embed-forms'); ?></label>
-          <p class="description"><?php esc_html_e('Sent a moment after the submission (paid, when the form takes payments), including offline donations. Columns: entry, date, status, email, amount, every field (names and addresses in parts), transaction and the page it was submitted on. Rows are not updated afterwards: edits, refunds and renewals stay in Embed Forms.', 'embed-forms'); ?></p>
+          <p class="description"><?php esc_html_e('Sent a moment after the submission (paid, when the form takes payments), including offline donations. Columns: entry, date, status, email, amount, every field (names and addresses in parts), transaction, card brand and last 4, and the page it was submitted on. Rows are not updated afterwards: edits, refunds and renewals stay in Embed Forms.', 'embed-forms'); ?></p>
         </td>
       </tr>
       <tr>

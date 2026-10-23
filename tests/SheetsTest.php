@@ -22,7 +22,7 @@ final class SheetsTest extends TestCase {
 
   public function testHeadersFollowTheCsvAndAreUnique(): void {
     $headers = Rows::headers($this->inputs());
-    self::assertSame(['Entry', 'Date', 'Status', 'Email', 'Amount', 'Name (first)', 'Name (last)', 'Email (2)', 'Size', 'Note', 'Transaction', 'Submitted on'], $headers);
+    self::assertSame(['Entry', 'Date', 'Status', 'Email', 'Amount', 'Name (first)', 'Name (last)', 'Email (2)', 'Size', 'Note', 'Transaction', 'Card', 'Submitted on'], $headers);
   }
 
   public function testValuesAreRawWithNumbersForIdAndAmount(): void {
@@ -34,13 +34,14 @@ final class SheetsTest extends TestCase {
       'source_url' => 'https://example.org/book/',
       'data' => ['name' => ['first' => 'Chaya', 'last' => 'Levi'], 'email' => 'a@example.org', 'size' => 'l', 'note' => '=HYPERLINK("x")'],
     ];
-    $row = Rows::values($entry, $this->inputs(), '2026-10-23 09:15', ['gateway' => 'stripe', 'mode' => 'sandbox', 'refnum' => '', 'transaction_key' => 'pi_123']);
-    self::assertSame([42, '2026-10-23 09:15', 'paid', 'a@example.org', 26.0, 'Chaya', 'Levi', 'a@example.org', 'Large', '=HYPERLINK("x")', 'pi_123 (test)', 'https://example.org/book/'], $row);
+    $row = Rows::values($entry, $this->inputs(), '2026-10-23 09:15', ['gateway' => 'stripe', 'mode' => 'sandbox', 'refnum' => '', 'transaction_key' => 'pi_123', 'card_brand' => 'Visa', 'card_last4' => '4242']);
+    self::assertSame([42, '2026-10-23 09:15', 'paid', 'a@example.org', 26.0, 'Chaya', 'Levi', 'a@example.org', 'Large', '=HYPERLINK("x")', 'pi_123 (test)', 'Visa •••• 4242', 'https://example.org/book/'], $row);
 
     $entry['amount'] = NULL;
     $offline = Rows::values($entry, $this->inputs(), 'd', ['gateway' => 'offline', 'method' => 'check', 'refnum' => '1001', 'mode' => '']);
     self::assertSame('', $offline[4]);
     self::assertSame('Offline check 1001', $offline[10]);
+    self::assertSame('', $offline[11]);
     self::assertSame('', Rows::values($entry, $this->inputs(), 'd')[10]);
   }
 

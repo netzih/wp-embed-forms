@@ -8,7 +8,7 @@ use EmbedForms\Schema\Display;
 /**
  * The header and rows a form's entries take in a Google Sheet: the CSV
  * export's columns (name and address split into parts), without the IP
- * address, plus the payment's transaction. Columns are matched to the
+ * address, plus the payment's transaction and card (brand and last 4). Columns are matched to the
  * sheet's header row by name, so a column moved or added in the sheet stays
  * put and a field added to the form gets a new column at the end. Pure PHP
  * so it can be unit tested.
@@ -24,7 +24,7 @@ final class Rows {
    * @return string[]
    */
   public static function headers(array $inputs): array {
-    $labels = array_merge(['Entry', 'Date', 'Status', 'Email', 'Amount'], array_column(CsvExport::columns($inputs), 'label'), ['Transaction', 'Submitted on']);
+    $labels = array_merge(['Entry', 'Date', 'Status', 'Email', 'Amount'], array_column(CsvExport::columns($inputs), 'label'), ['Transaction', 'Card', 'Submitted on']);
     $seen = [];
     $out = [];
     foreach ($labels as $label) {
@@ -64,6 +64,7 @@ final class Rows {
         : Display::text($inputs[$column['id']], $value);
     }
     $row[] = self::transaction($payment);
+    $row[] = $payment && ($payment['card_last4'] ?? '') !== '' ? trim(($payment['card_brand'] ?? '') . ' •••• ' . $payment['card_last4']) : '';
     $row[] = (string) ($entry['source_url'] ?? '');
     return $row;
   }

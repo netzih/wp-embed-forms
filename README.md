@@ -122,7 +122,8 @@ Google Sheets on the form).
 - **What is sent:** entries that are submitted, or paid when the form takes
   payments, and offline donations; not failed or unfinished payments.
   Columns as in the CSV export (names and addresses in parts) without the
-  IP address, plus the transaction (marked "(test)" in test mode). Values
+  IP address, plus the transaction (marked "(test)" in test mode) and the
+  card as brand and last 4 ("Visa •••• 4242"); no other card data exists here. Values
   are written as they are (`RAW`), so nothing is run as a formula. Rows are
   not updated afterwards.
 - **Columns** follow row 1 by name: an empty sheet gets the header, a field
