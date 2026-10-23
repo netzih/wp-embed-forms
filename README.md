@@ -139,6 +139,32 @@ Google Sheets on the form).
 - A duplicated form starts with sending off. Tests and test sites can
   answer Google's calls with the `embed_forms_sheets_response` filter.
 
+## Shared entries page
+
+A form's entries as a sheet for people without a WordPress login (Settings
+> Shared entries page on the form).
+
+- **Access:** a secret link (`/?ef-sheet=<32 hex>`) plus a password of at
+  least 10 characters, both per form. A signed cookie (HMAC over the form,
+  link and password hash) keeps someone in for 12 hours; a new password or
+  **Make a new link** signs everyone out. Wrong passwords are limited to 10
+  an hour per IP address and 50 an hour per form.
+- **Changes:** with **Allow changing answers** on, white cells can be
+  changed in place (Enter or click, Enter saves, Escape cancels, Tab moves
+  on). Only that one answer changes, it is validated like the admin entry
+  editor, and the entry's history records old and new values. The entry
+  number, date, status, email, amount, payment answers, checkboxes,
+  transaction and card cannot be changed. If someone else changed the cell
+  first, the change is refused and the cell shows theirs. Changes need a
+  per-session token, so another site cannot make them.
+- **Shows** submitted, paid and refunded entries, newest first (up to
+  3,000), with find-in-entries, and downloads as CSV (formulas
+  neutralised) or Excel (inline text, needs PHP's zip extension).
+- The page is never cached (also not by Cloudflare's edge cache: it sets
+  `cf-edge-cache: no-cache` and the `cloudflare_use_cache` filter),
+  indexed or framed, and sends no referrer. A duplicated form gets no link
+  or password. Changes made here are not sent to Google Sheets.
+
 ## Campaigns
 
 **Settings > Campaign > Donor list** publishes a form's running total and

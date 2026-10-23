@@ -29,7 +29,7 @@
 
     var copy = event.target.closest('.ef-copy');
     if (copy) {
-      var area = copy.parentNode.querySelector('textarea');
+      var area = copy.parentNode.querySelector('textarea, input');
       var done = function () {
         var label = copy.textContent;
         copy.textContent = strings.copied || 'Copied';

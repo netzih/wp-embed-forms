@@ -133,8 +133,10 @@ final class Forms {
       throw new \InvalidArgumentException('Form not found.');
     }
     $settings = $form['settings'];
-    // The copy's entries would land in the original's sheet.
+    // The copy's entries would land in the original's Google Sheet.
     $settings['sheets']['enabled'] = FALSE;
+    // Nor should it share the original's entries page link or password.
+    $settings['sheet'] = ['enabled' => FALSE, 'token' => '', 'password_hash' => ''] + $settings['sheet'];
     return self::create(sprintf(__('%s (copy)', 'embed-forms'), $form['title']), $form['schema'], $settings);
   }
 
