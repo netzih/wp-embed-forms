@@ -315,6 +315,7 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 .ef-product-price { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ef-qty { width: 96px; text-align: center; }
 .ef-times { color: var(--ef-subtle); }
+.ef-product-count { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .ef-type-total { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; padding: 16px 18px; background: var(--ef-panel); border-radius: 12px; }
 .ef-type-total .ef-label { width: auto; margin: 0; font-size: 15px; font-weight: 400; color: var(--ef-muted); }
