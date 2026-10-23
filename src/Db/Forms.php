@@ -132,7 +132,10 @@ final class Forms {
     if (!$form) {
       throw new \InvalidArgumentException('Form not found.');
     }
-    return self::create(sprintf(__('%s (copy)', 'embed-forms'), $form['title']), $form['schema'], $form['settings']);
+    $settings = $form['settings'];
+    // The copy's entries would land in the original's sheet.
+    $settings['sheets']['enabled'] = FALSE;
+    return self::create(sprintf(__('%s (copy)', 'embed-forms'), $form['title']), $form['schema'], $settings);
   }
 
   /**

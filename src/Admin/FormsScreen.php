@@ -114,10 +114,18 @@ final class FormsScreen {
         </section>
 
         <section class="ef-tab-panel" data-panel="settings" <?php echo $tab === 'settings' ? '' : 'hidden'; ?>>
-          <h2><?php esc_html_e('Form', 'embed-forms'); ?></h2>
+          <?php
+          $accentLabels = array_map(static fn($a) => $a[0], self::accents()) + ['custom' => __('Brand colour', 'embed-forms')];
+          $fonts = Design::fontChoices();
+          $emailsOn = array_filter([$notification['enabled'] ? __('notification', 'embed-forms') : '', $s['autoresponder']['enabled'] ? __('confirmation', 'embed-forms') : '']);
+          $domainCount = count($s['embed_domains']);
+          Sections::start(__('Form settings', 'embed-forms'));
+
+          Sections::open('general', __('General', 'embed-forms'), '/' . Embed::base() . '/' . $form['slug'] . '/');
+          ?>
           <table class="form-table" role="presentation">
             <tr>
-              <th scope="row"><label for="ef-slug"><?php esc_html_e('Link name', 'embed-forms'); ?></label></th>
+              <th scope="row"><label for="ef-slug"><?php esc_html_e('Link', 'embed-forms'); ?></label></th>
               <td><code><?php echo esc_html(home_url('/' . Embed::base() . '/')); ?></code><input type="text" id="ef-slug" name="slug" value="<?php echo esc_attr($form['slug']); ?>" class="regular-text"></td>
             </tr>
             <tr>
@@ -133,6 +141,13 @@ final class FormsScreen {
               <th scope="row"><label for="ef-submit-label"><?php esc_html_e('Submit button', 'embed-forms'); ?></label></th>
               <td><input type="text" id="ef-submit-label" name="settings[submit_label]" value="<?php echo esc_attr($s['submit_label']); ?>" class="regular-text"></td>
             </tr>
+          </table>
+          <?php
+          Sections::close();
+
+          Sections::open('design', __('Design', 'embed-forms'), sprintf('%s, %s', $fonts[$s['font']] ?? $s['font'], $accentLabels[$s['accent']] ?? $s['accent']));
+          ?>
+          <table class="form-table" role="presentation">
             <tr>
               <th scope="row"><?php esc_html_e('Accent colour', 'embed-forms'); ?></th>
               <td><fieldset class="ef-accents"><legend class="screen-reader-text"><?php esc_html_e('Accent colour', 'embed-forms'); ?></legend>
@@ -141,31 +156,31 @@ final class FormsScreen {
                 <?php endforeach; ?>
                 <label><input type="radio" name="settings[accent]" value="custom" <?php checked($s['accent'], 'custom'); ?>> <?php esc_html_e('Brand colour', 'embed-forms'); ?></label>
                 <input type="color" name="settings[accent_color]" value="<?php echo esc_attr($s['accent_color'] ?: '#8a2c3b'); ?>" aria-label="<?php esc_attr_e('Brand colour', 'embed-forms'); ?>" class="ef-color">
-                <p class="description"><?php esc_html_e('Used for selected choices, the focus ring and the main button. Text on a brand colour turns dark when the colour is light.', 'embed-forms'); ?></p>
+                <p class="description"><?php esc_html_e('For the main button, selected choices and the focus ring.', 'embed-forms'); ?></p>
               </fieldset></td>
             </tr>
             <tr>
               <th scope="row"><label for="ef-font"><?php esc_html_e('Fonts', 'embed-forms'); ?></label></th>
               <td>
                 <select id="ef-font" name="settings[font]" aria-label="<?php esc_attr_e('Text font', 'embed-forms'); ?>">
-                  <?php foreach (Design::fontChoices() as $key => $label) : ?>
+                  <?php foreach ($fonts as $key => $label) : ?>
                     <option value="<?php echo esc_attr($key); ?>" <?php selected($s['font'], $key); ?>><?php echo esc_html($label); ?></option>
                   <?php endforeach; ?>
                 </select>
                 <select name="settings[heading_font]" aria-label="<?php esc_attr_e('Heading font', 'embed-forms'); ?>">
                   <option value=""><?php esc_html_e('Headings: same as text', 'embed-forms'); ?></option>
-                  <?php foreach (Design::fontChoices() as $key => $label) : ?>
+                  <?php foreach ($fonts as $key => $label) : ?>
                     <option value="<?php echo esc_attr($key); ?>" <?php selected($s['heading_font'], $key); ?>><?php echo esc_html(sprintf(__('Headings: %s', 'embed-forms'), $label)); ?></option>
                   <?php endforeach; ?>
                 </select>
-                <p class="description"><?php esc_html_e('Text, then headings, amounts and the thank-you message. Fonts other than Geist and System load from Google Fonts.', 'embed-forms'); ?></p>
+                <p class="description"><?php esc_html_e('Text, then headings and amounts. All but Geist and System load from Google Fonts.', 'embed-forms'); ?></p>
               </td>
             </tr>
             <tr>
               <th scope="row"><?php esc_html_e('Style', 'embed-forms'); ?></th>
               <td><fieldset>
                 <label><input type="radio" name="settings[layout]" value="card" <?php checked($s['layout'], 'card'); ?>> <?php esc_html_e('On its own card', 'embed-forms'); ?></label><br>
-                <label><input type="radio" name="settings[layout]" value="plain" <?php checked($s['layout'], 'plain'); ?>> <?php esc_html_e('Plain: no card, blends into the page it is embedded on', 'embed-forms'); ?></label>
+                <label><input type="radio" name="settings[layout]" value="plain" <?php checked($s['layout'], 'plain'); ?>> <?php esc_html_e('Plain, to blend into the page it is embedded on', 'embed-forms'); ?></label>
               </fieldset>
               <fieldset style="margin-top:10px">
                 <label><input type="radio" name="settings[corners]" value="soft" <?php checked($s['corners'], 'soft'); ?>> <?php esc_html_e('Soft corners', 'embed-forms'); ?></label>
@@ -173,61 +188,55 @@ final class FormsScreen {
               </fieldset></td>
             </tr>
           </table>
+          <?php
+          Sections::close();
 
-          <h2><?php esc_html_e('After submission', 'embed-forms'); ?></h2>
+          Sections::open('after', __('After submission', 'embed-forms'), $s['confirmation']['type'] === 'redirect' ? __('Goes to a web page', 'embed-forms') : __('Shows a message', 'embed-forms'));
+          ?>
           <table class="form-table" role="presentation">
             <tr>
-              <th scope="row"><?php esc_html_e('Confirmation', 'embed-forms'); ?></th>
+              <th scope="row"><?php esc_html_e('Then', 'embed-forms'); ?></th>
               <td>
                 <label><input type="radio" name="settings[confirmation][type]" value="message" <?php checked($s['confirmation']['type'], 'message'); ?>> <?php esc_html_e('Show a message', 'embed-forms'); ?></label><br>
                 <label><input type="radio" name="settings[confirmation][type]" value="redirect" <?php checked($s['confirmation']['type'], 'redirect'); ?>> <?php esc_html_e('Go to a web page', 'embed-forms'); ?></label>
               </td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[confirmation][type]=message">
               <th scope="row"><label for="ef-confirmation-message"><?php esc_html_e('Message', 'embed-forms'); ?></label></th>
               <td><textarea id="ef-confirmation-message" name="settings[confirmation][message]" rows="4" class="large-text"><?php echo esc_textarea($s['confirmation']['message']); ?></textarea>
                 <p class="description"><?php esc_html_e('HTML allowed. Merge tags: {field:ID}, {all_fields}, {form_title}, {entry_id}.', 'embed-forms'); ?></p></td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[confirmation][type]=redirect">
               <th scope="row"><label for="ef-confirmation-url"><?php esc_html_e('Page address', 'embed-forms'); ?></label></th>
               <td><input type="url" id="ef-confirmation-url" name="settings[confirmation][url]" value="<?php echo esc_attr($s['confirmation']['url']); ?>" class="large-text" placeholder="https://">
-                <p class="description"><?php esc_html_e('Used when "Go to a web page" is chosen. Merge tags are URL-encoded. In an embedded form the whole page goes there, not only the frame.', 'embed-forms'); ?></p></td>
+                <p class="description"><?php esc_html_e('Merge tags work here too. In an embedded form the whole page goes there, not only the frame.', 'embed-forms'); ?></p></td>
             </tr>
           </table>
+          <?php
+          Sections::close();
 
-          <h2><?php esc_html_e('Email sender', 'embed-forms'); ?></h2>
-          <table class="form-table" role="presentation">
-            <tr>
-              <th scope="row"><label for="ef-from-name"><?php esc_html_e('From name', 'embed-forms'); ?></label></th>
-              <td><input type="text" id="ef-from-name" name="settings[from_name]" value="<?php echo esc_attr($s['from_name']); ?>" class="regular-text" placeholder="<?php echo esc_attr((string) \EmbedForms\Settings::get('from_name')); ?>"></td>
-            </tr>
-            <tr>
-              <th scope="row"><label for="ef-from-email"><?php esc_html_e('From address', 'embed-forms'); ?></label></th>
-              <td><input type="email" id="ef-from-email" name="settings[from_email]" value="<?php echo esc_attr($s['from_email']); ?>" class="regular-text" placeholder="<?php echo esc_attr((string) \EmbedForms\Settings::get('from_email')); ?>">
-                <p class="description"><?php esc_html_e('For every email this form sends: the notification, the confirmation to the person who submitted, and recurring payment receipts. Leave empty to use Embed Forms > Settings. Use an address your mail service is allowed to send from (for example, on a domain set up in Post SMTP), or the email may land in spam.', 'embed-forms'); ?></p></td>
-            </tr>
-          </table>
-
-          <h2><?php esc_html_e('Notification email', 'embed-forms'); ?></h2>
+          Sections::open('emails', __('Emails', 'embed-forms'), $emailsOn ? ucfirst(implode(__(' and ', 'embed-forms'), $emailsOn)) : __('Off', 'embed-forms'));
+          ?>
+          <h3><?php esc_html_e('Notification to you', 'embed-forms'); ?></h3>
           <table class="form-table" role="presentation">
             <tr>
               <th scope="row"><?php esc_html_e('Send', 'embed-forms'); ?></th>
               <td><label><input type="checkbox" name="settings[notifications][0][enabled]" value="1" <?php checked($notification['enabled']); ?>> <?php esc_html_e('Email every new entry', 'embed-forms'); ?></label></td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[notifications][0][enabled]">
               <th scope="row"><label for="ef-n-to"><?php esc_html_e('To', 'embed-forms'); ?></label></th>
               <td><input type="text" id="ef-n-to" name="settings[notifications][0][to]" value="<?php echo esc_attr($notification['to']); ?>" class="large-text">
-                <p class="description"><?php esc_html_e('Addresses separated by commas. {admin_email} is the site admin address.', 'embed-forms'); ?></p></td>
+                <p class="description"><?php esc_html_e('Separate addresses with commas. {admin_email} is the site admin.', 'embed-forms'); ?></p></td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[notifications][0][enabled]">
               <th scope="row"><label for="ef-n-subject"><?php esc_html_e('Subject', 'embed-forms'); ?></label></th>
               <td><input type="text" id="ef-n-subject" name="settings[notifications][0][subject]" value="<?php echo esc_attr($notification['subject']); ?>" class="large-text"></td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[notifications][0][enabled]">
               <th scope="row"><label for="ef-n-body"><?php esc_html_e('Message', 'embed-forms'); ?></label></th>
-              <td><textarea id="ef-n-body" name="settings[notifications][0][body]" rows="5" class="large-text"><?php echo esc_textarea($notification['body']); ?></textarea></td>
+              <td><textarea id="ef-n-body" name="settings[notifications][0][body]" rows="4" class="large-text"><?php echo esc_textarea($notification['body']); ?></textarea></td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[notifications][0][enabled]">
               <th scope="row"><label for="ef-n-reply"><?php esc_html_e('Reply-To', 'embed-forms'); ?></label></th>
               <td><input type="text" id="ef-n-reply" name="settings[notifications][0][reply_to]" value="<?php echo esc_attr($notification['reply_to']); ?>" class="large-text" placeholder="{field:email}"></td>
             </tr>
@@ -238,17 +247,17 @@ final class FormsScreen {
             <?php endforeach; ?>
           <?php endforeach; ?>
 
-          <h2><?php esc_html_e('Confirmation email to the person who submitted', 'embed-forms'); ?></h2>
+          <h3><?php esc_html_e('Confirmation to the person who submitted', 'embed-forms'); ?></h3>
           <table class="form-table" role="presentation">
             <tr>
               <th scope="row"><?php esc_html_e('Send', 'embed-forms'); ?></th>
               <td><label><input type="checkbox" name="settings[autoresponder][enabled]" value="1" <?php checked($s['autoresponder']['enabled']); ?>> <?php esc_html_e('Email a confirmation', 'embed-forms'); ?></label></td>
             </tr>
-            <tr>
-              <th scope="row"><label for="ef-a-field"><?php esc_html_e('Email field', 'embed-forms'); ?></label></th>
+            <tr data-ef-show-if="settings[autoresponder][enabled]">
+              <th scope="row"><label for="ef-a-field"><?php esc_html_e('To', 'embed-forms'); ?></label></th>
               <td>
                 <select id="ef-a-field" name="settings[autoresponder][to_field]">
-                  <option value=""><?php esc_html_e('Choose…', 'embed-forms'); ?></option>
+                  <option value=""><?php esc_html_e('Choose the email field…', 'embed-forms'); ?></option>
                   <?php foreach ($emailFields as $field) : ?>
                     <option value="<?php echo esc_attr($field['id']); ?>" <?php selected($s['autoresponder']['to_field'], $field['id']); ?>><?php echo esc_html($field['label'] ?: $field['id']); ?></option>
                   <?php endforeach; ?>
@@ -256,33 +265,54 @@ final class FormsScreen {
                 <?php if (!$emailFields) : ?><p class="description"><?php esc_html_e('Add an email field to the form first.', 'embed-forms'); ?></p><?php endif; ?>
               </td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[autoresponder][enabled]">
               <th scope="row"><label for="ef-a-subject"><?php esc_html_e('Subject', 'embed-forms'); ?></label></th>
               <td><input type="text" id="ef-a-subject" name="settings[autoresponder][subject]" value="<?php echo esc_attr($s['autoresponder']['subject']); ?>" class="large-text"></td>
             </tr>
-            <tr>
+            <tr data-ef-show-if="settings[autoresponder][enabled]">
               <th scope="row"><label for="ef-a-body"><?php esc_html_e('Message', 'embed-forms'); ?></label></th>
-              <td><textarea id="ef-a-body" name="settings[autoresponder][body]" rows="5" class="large-text"><?php echo esc_textarea($s['autoresponder']['body']); ?></textarea></td>
+              <td><textarea id="ef-a-body" name="settings[autoresponder][body]" rows="6" class="large-text code"><?php echo esc_textarea($s['autoresponder']['body']); ?></textarea></td>
             </tr>
           </table>
 
-          <h2><?php esc_html_e('Access and spam', 'embed-forms'); ?></h2>
+          <h3><?php esc_html_e('Sender', 'embed-forms'); ?></h3>
+          <table class="form-table" role="presentation">
+            <tr>
+              <th scope="row"><label for="ef-from-name"><?php esc_html_e('From name', 'embed-forms'); ?></label></th>
+              <td><input type="text" id="ef-from-name" name="settings[from_name]" value="<?php echo esc_attr($s['from_name']); ?>" class="regular-text" placeholder="<?php echo esc_attr((string) Settings::get('from_name')); ?>"></td>
+            </tr>
+            <tr>
+              <th scope="row"><label for="ef-from-email"><?php esc_html_e('From address', 'embed-forms'); ?></label></th>
+              <td><input type="email" id="ef-from-email" name="settings[from_email]" value="<?php echo esc_attr($s['from_email']); ?>" class="regular-text" placeholder="<?php echo esc_attr((string) Settings::get('from_email')); ?>">
+                <p class="description"><?php esc_html_e('For all of this form\'s emails, including recurring payment receipts. Leave empty to use Embed Forms > Settings. Use an address your mail service may send from, or emails may land in spam.', 'embed-forms'); ?></p></td>
+            </tr>
+          </table>
+          <?php
+          Sections::close();
+
+          /**
+           * Payment settings print here as their own section.
+           */
+          do_action('embed_forms_editor_settings_payments', $form);
+
+          Sections::open('access', __('Access and spam', 'embed-forms'), ($domainCount ? sprintf(_n('%d website', '%d websites', $domainCount, 'embed-forms'), $domainCount) : __('Any website', 'embed-forms')) . ($s['turnstile'] && Settings::turnstileConfigured() ? __(', Turnstile', 'embed-forms') : ''));
+          ?>
           <table class="form-table" role="presentation">
             <tr>
               <th scope="row"><label for="ef-domains"><?php esc_html_e('Allowed websites', 'embed-forms'); ?></label></th>
               <td><textarea id="ef-domains" name="settings[embed_domains]" rows="3" class="large-text code" placeholder="example.org&#10;*.example.org"><?php echo esc_textarea(implode("\n", $s['embed_domains'])); ?></textarea>
-                <p class="description"><?php esc_html_e('Domains that may embed this form, one per line; *.example.org also covers its subdomains. Browsers refuse to show the form on any other website. Leave empty to allow any website.', 'embed-forms'); ?></p></td>
+                <p class="description"><?php esc_html_e('Websites that may embed this form, one per line (*.example.org includes its subdomains). Empty allows any website.', 'embed-forms'); ?></p></td>
             </tr>
             <tr>
               <th scope="row"><?php esc_html_e('Direct link', 'embed-forms'); ?></th>
-              <td><label><input type="checkbox" name="settings[allow_direct]" value="1" <?php checked($s['allow_direct']); ?>> <?php esc_html_e('Allow opening the form on its own page (share link)', 'embed-forms'); ?></label>
-                <p class="description"><?php esc_html_e('Only applies when allowed websites are set. Turn off to make the form available only inside those websites. Administrators can always preview it.', 'embed-forms'); ?></p></td>
+              <td><label><input type="checkbox" name="settings[allow_direct]" value="1" <?php checked($s['allow_direct']); ?>> <?php esc_html_e('Allow opening the form on its own page', 'embed-forms'); ?></label>
+                <p class="description"><?php esc_html_e('Only matters when allowed websites are set. Administrators can always preview.', 'embed-forms'); ?></p></td>
             </tr>
             <tr>
               <th scope="row"><?php esc_html_e('Turnstile', 'embed-forms'); ?></th>
               <td><label><input type="checkbox" name="settings[turnstile]" value="1" <?php checked($s['turnstile']); ?>> <?php esc_html_e('Require the Cloudflare Turnstile check', 'embed-forms'); ?></label>
                 <?php if (!Settings::turnstileConfigured()) : ?>
-                  <p class="description"><?php printf(esc_html__('Turnstile keys are not set yet (%s), so no check is shown.', 'embed-forms'), '<a href="' . esc_url(admin_url('admin.php?page=' . Menu::PAGE_SETTINGS)) . '">' . esc_html__('Settings', 'embed-forms') . '</a>'); ?></p>
+                  <p class="description"><?php printf(esc_html__('No check is shown until Turnstile keys are saved in %s.', 'embed-forms'), '<a href="' . esc_url(admin_url('admin.php?page=' . Menu::PAGE_SETTINGS . '&section=spam')) . '">' . esc_html__('Settings', 'embed-forms') . '</a>'); ?></p>
                 <?php endif; ?></td>
             </tr>
             <tr>
@@ -290,18 +320,21 @@ final class FormsScreen {
               <td><input type="number" min="0" id="ef-max" name="settings[max_entries]" value="<?php echo (int) $s['max_entries']; ?>" class="small-text"> <span class="description"><?php esc_html_e('0 for no limit', 'embed-forms'); ?></span></td>
             </tr>
             <tr>
-              <th scope="row"><label for="ef-closed"><?php esc_html_e('Closed message', 'embed-forms'); ?></label></th>
+              <th scope="row"><label for="ef-closed"><?php esc_html_e('When closed or full', 'embed-forms'); ?></label></th>
               <td><textarea id="ef-closed" name="settings[closed_message]" rows="2" class="large-text"><?php echo esc_textarea($s['closed_message']); ?></textarea></td>
             </tr>
           </table>
           <?php
+          Sections::close();
+
           /**
-           * More settings sections (payments) print here, inside the form.
+           * More sections (campaign, Google Sheets) print here, inside the
+           * form; each opens and closes its own Admin\Sections section.
            */
           do_action('embed_forms_editor_settings', $form);
+          Sections::end();
           ?>
         </section>
-
         <section class="ef-tab-panel" data-panel="embed" <?php echo $tab === 'embed' ? '' : 'hidden'; ?>>
           <?php if ($form['status'] !== 'live') : ?>
             <div class="notice notice-warning inline"><p><?php esc_html_e('This form is not live yet: visitors will not see it until its status is Live.', 'embed-forms'); ?></p></div>
@@ -368,6 +401,7 @@ final class FormsScreen {
     $id = isset($_POST['form']) ? (int) $_POST['form'] : 0;
     check_admin_referer('embed_forms_save_' . $id);
     $tab = isset($_POST['tab']) ? sanitize_key((string) $_POST['tab']) : 'fields';
+    $section = isset($_POST['section']) ? sanitize_key((string) $_POST['section']) : '';
     $post = wp_unslash($_POST);
     $settings = is_array($post['settings'] ?? NULL) ? $post['settings'] : [];
     // Unchecked boxes are absent from the post.
@@ -423,7 +457,7 @@ final class FormsScreen {
     catch (\InvalidArgumentException $e) {
       Menu::flash(sprintf(__('Not saved: %s', 'embed-forms'), $e->getMessage()), 'error');
     }
-    wp_safe_redirect(Menu::formsUrl(['form' => $id, 'tab' => $tab]));
+    wp_safe_redirect(Menu::formsUrl(array_filter(['form' => $id, 'tab' => $tab, 'section' => $section])));
     exit;
   }
 

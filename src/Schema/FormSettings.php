@@ -5,7 +5,8 @@ namespace EmbedForms\Schema;
 /**
  * Per-form settings in canonical shape: confirmation, email notifications,
  * payer confirmation email and its sender, where the form may be embedded,
- * spam checks, and which payment processor and account take its payments.
+ * spam checks, which payment processor and account take its payments, and
+ * the Google Sheet its entries go to.
  * Pure PHP so it can be unit tested.
  */
 final class FormSettings {
@@ -97,6 +98,14 @@ final class FormSettings {
         // zone), for the total and the list alike; '' counts all.
         'since' => '',
       ],
+      // A row in a Google Sheet for every new entry (Sheets\Module).
+      'sheets' => [
+        'enabled' => FALSE,
+        // The spreadsheet's id (a pasted link is reduced to it).
+        'spreadsheet' => '',
+        // The tab's name; '' is the first tab.
+        'tab' => '',
+      ],
     ];
   }
 
@@ -111,6 +120,7 @@ final class FormSettings {
     $autoresponder = is_array($in['autoresponder'] ?? NULL) ? $in['autoresponder'] : [];
     $payment = is_array($in['payment'] ?? NULL) ? $in['payment'] : [];
     $campaign = is_array($in['campaign'] ?? NULL) ? $in['campaign'] : [];
+    $sheets = is_array($in['sheets'] ?? NULL) ? $in['sheets'] : [];
     $fromEmail = strtolower(self::line($in['from_email'] ?? ''));
 
     $notifications = [];
@@ -172,6 +182,11 @@ final class FormSettings {
         'offset_donors' => max(0, (int) ($campaign['offset_donors'] ?? 0)),
         'max_donors' => max(1, min(200, (int) ($campaign['max_donors'] ?? $d['campaign']['max_donors']) ?: $d['campaign']['max_donors'])),
         'since' => self::date($campaign['since'] ?? ''),
+      ],
+      'sheets' => [
+        'enabled' => !empty($sheets['enabled']),
+        'spreadsheet' => \EmbedForms\Sheets\Rows::spreadsheetId($sheets['spreadsheet'] ?? ''),
+        'tab' => mb_substr(self::line($sheets['tab'] ?? ''), 0, 100),
       ],
     ];
   }

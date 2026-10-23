@@ -107,6 +107,38 @@ or **Plain** (embedded without a card, for a page that already puts the
 form on one), and soft or **round** corners. A form that changes none of
 these looks exactly as before.
 
+## Google Sheets
+
+A form can add a row to a Google Sheet for every new entry (Settings >
+Google Sheets on the form).
+
+- **Setup, once:** **Embed Forms > Settings > Google Sheets** walks through
+  it with links: create a Google Cloud project, enable the Google Sheets
+  API, create a service account and download a JSON key for it, then choose
+  the key file there (stored in the settings option, never shown again).
+  **Check the connection** signs in to Google to test the key. Then share each spreadsheet with the service account's email
+  as **Editor** and paste the spreadsheet's link into the form (optionally a
+  tab name; the first tab otherwise).
+- **What is sent:** entries that are submitted, or paid when the form takes
+  payments, and offline donations; not failed or unfinished payments.
+  Columns as in the CSV export (names and addresses in parts) without the
+  IP address, plus the transaction (marked "(test)" in test mode) and the
+  card as brand and last 4 ("Visa •••• 4242"); no other card data exists here. Values
+  are written as they are (`RAW`), so nothing is run as a formula. Rows are
+  not updated afterwards.
+- **Columns** follow row 1 by name: an empty sheet gets the header, a field
+  added to the form gets a new column at the end, and columns may be
+  reordered or added in the sheet as long as the names stay.
+- **When:** from WP-Cron right after the submission (the person does not
+  wait for Google). A failed send is retried 5, 20, 45 and 80 minutes
+  later; the last result shows under the form's Google Sheets settings and
+  errors go to the PHP error log.
+- **Send all entries** in the editor sends the form's entries not yet in the
+  sheet (matched by the Entry column), for entries made before, or after a
+  send that never went through. Safe to repeat.
+- A duplicated form starts with sending off. Tests and test sites can
+  answer Google's calls with the `embed_forms_sheets_response` filter.
+
 ## Campaigns
 
 **Settings > Campaign > Donor list** publishes a form's running total and
