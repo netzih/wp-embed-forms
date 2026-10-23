@@ -238,10 +238,21 @@
       if (!field.quantity) {
         return { el: api.el('div', { className: 'ef-product' }, [price]), get: function () { return '1'; }, set: function () {}, focus: function () {} };
       }
-      var input = api.el('input', { type: 'number', min: '0', max: String(field.max_quantity || 10), step: '1', inputmode: 'numeric', className: 'ef-input ef-qty', id: api.inputId(field), 'aria-describedby': api.describedBy(field) });
+      var max = field.max_quantity || 10;
+      var input = api.el('input', { type: 'number', min: '0', max: String(max), step: '1', inputmode: 'numeric', className: 'ef-qty', id: api.inputId(field), 'aria-describedby': api.describedBy(field) });
       input.value = field['default'] !== undefined && field['default'] !== '' ? String(field['default']) : '0';
+      // − and + step within 0 (1 when required) and the maximum.
+      function step(by) {
+        var q = Math.min(max, Math.max(field.required ? 1 : 0, (parseInt(input.value, 10) || 0) + by));
+        if (String(q) !== input.value) {
+          input.value = String(q);
+          changed(input);
+        }
+      }
+      var less = api.el('button', { type: 'button', className: 'ef-stepper-btn', 'aria-label': i18n.decrease || 'Decrease quantity', text: '−', onclick: function () { step(-1); } });
+      var more = api.el('button', { type: 'button', className: 'ef-stepper-btn', 'aria-label': i18n.increase || 'Increase quantity', text: '+', onclick: function () { step(1); } });
       return {
-        el: api.el('div', { className: 'ef-product' }, [price, api.el('span', { className: 'ef-times', 'aria-hidden': 'true', text: '×' }), input]),
+        el: api.el('div', { className: 'ef-product' }, [price, api.el('div', { className: 'ef-stepper' }, [less, input, more])]),
         get: function () { return input.value; },
         set: function (v) { input.value = v === null || v === undefined ? '' : String(v); },
         focus: function () { input.focus(); }

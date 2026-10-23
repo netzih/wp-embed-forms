@@ -313,7 +313,14 @@ input.ef-input[type="number"] { font-variant-numeric: tabular-nums; }
 
 .ef-product { display: flex; align-items: center; gap: 12px; }
 .ef-product-price { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.ef-qty { width: 96px; text-align: center; }
+.ef-stepper { display: inline-flex; align-items: center; height: 52px; padding: 0 4px; background: #fff; border: 1px solid var(--ef-border); border-radius: 999px; transition: border-color .15s, box-shadow .15s; }
+.ef-stepper:focus-within { border-color: var(--ef-focus); box-shadow: 0 0 0 4px var(--ef-ring); }
+.ef-stepper-btn { width: 44px; height: 44px; margin: 0; padding: 0; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 22px; line-height: 1; color: var(--ef-text); cursor: pointer; }
+.ef-stepper-btn:hover { background: var(--ef-sunken); }
+.ef-stepper-btn:focus-visible { outline: 2px solid var(--ef-focus); outline-offset: -2px; }
+.ef-qty { width: 56px; height: 44px; margin: 0; padding: 0; border: 0; background: transparent; font: inherit; font-size: 18px; font-weight: 600; text-align: center; color: var(--ef-text); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.ef-qty:focus { outline: 0; }
+.ef-qty::-webkit-outer-spin-button, .ef-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .ef-times { color: var(--ef-subtle); }
 .ef-product-count { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
