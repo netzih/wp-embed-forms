@@ -49,6 +49,8 @@ final class Menu {
       'copied' => __('Copied', 'embed-forms'),
       'confirmDelete' => __('Are you sure? This cannot be undone.', 'embed-forms'),
       'confirmRefund' => __('Refund this amount to the payer\'s card now?', 'embed-forms'),
+      'on' => __('On', 'embed-forms'),
+      'off' => __('Off', 'embed-forms'),
     ]);
   }
 

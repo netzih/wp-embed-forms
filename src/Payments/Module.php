@@ -3,6 +3,7 @@
 namespace EmbedForms\Payments;
 
 use EmbedForms\Admin\Menu;
+use EmbedForms\Admin\Sections;
 use EmbedForms\Db\Entries;
 use EmbedForms\Db\Forms;
 use EmbedForms\Db\Notes;
@@ -36,7 +37,7 @@ final class Module {
       add_action('admin_post_embed_forms_refund', [$this, 'refundAction']);
       add_action('admin_post_embed_forms_cancel_subscription', [$this, 'cancelAction']);
       add_action('admin_post_embed_forms_run_renewals', [$this, 'runRenewalsAction']);
-      add_action('embed_forms_editor_settings', [$this, 'editorSettings']);
+      add_action('embed_forms_editor_settings_payments', [$this, 'editorSettings']);
     }
   }
 
@@ -216,24 +217,27 @@ final class Module {
     if (!array_intersect(array_column($form['schema']['fields'], 'type'), Fields::PAYMENT_TYPES)) {
       return;
     }
+    $choices = Processor::accountChoices();
+    $p = $form['settings']['payment'];
+    ['gateway' => $gateway] = Processor::forForm($form);
+    $mode = Processor::mode($gateway);
+    if ($gateway === Processor::USAEPAY && !Processor::usaepayActive()) {
+      $problem = __('USAePay Payments is not active: this form cannot take payments.', 'embed-forms');
+    }
+    elseif (!Processor::checkoutReady($form)) {
+      $problem = $gateway === Processor::STRIPE && $p['stripe_account'] === ''
+        ? __('Choose a Stripe account.', 'embed-forms')
+        : sprintf(__('The keys of this account for %s mode are incomplete: this form cannot take payments.', 'embed-forms'), $mode === 'live' ? __('live', 'embed-forms') : __('test', 'embed-forms'));
+    }
+    $modeLabel = $mode === 'sandbox' ? __('test mode', 'embed-forms') : __('live', 'embed-forms');
+    Sections::open('payments', __('Payments', 'embed-forms'), !empty($problem) ? __('Not ready', 'embed-forms') : sprintf('%s, %s', $p['processor'] === 'stripe' ? 'Stripe' : 'USAePay', $modeLabel), '', !empty($problem) ? 'bad' : '');
     ?>
-    <h2><?php esc_html_e('Payments', 'embed-forms'); ?></h2>
+    <?php if (!empty($problem)) : ?>
+      <div class="notice notice-error inline"><p><?php echo esc_html($problem); ?></p></div>
+    <?php endif; ?>
     <table class="form-table" role="presentation">
       <tr>
-        <th scope="row"><?php esc_html_e('Renewal receipts', 'embed-forms'); ?></th>
-        <td><label><input type="checkbox" name="settings[renewal_receipts]" value="1" <?php checked(!empty($form['settings']['renewal_receipts'])); ?>> <?php esc_html_e('Email the payer a receipt for each recurring payment', 'embed-forms'); ?></label>
-          <input type="hidden" name="settings_flags[]" value="renewal_receipts"></td>
-      </tr>
-      <tr>
-        <th scope="row"><?php esc_html_e('Merge tags', 'embed-forms'); ?></th>
-        <td><p class="description"><?php esc_html_e('For the confirmation message and emails: {payment_summary} (table of what was paid), {payment_amount}, {payment_frequency}, {transaction_id}, {card_brand}, {card_last4}, {next_payment_date}.', 'embed-forms'); ?></p></td>
-      </tr>
-      <?php
-      $choices = Processor::accountChoices();
-      $p = $form['settings']['payment'];
-      ?>
-      <tr>
-        <th scope="row"><?php esc_html_e('Payment processor', 'embed-forms'); ?></th>
+        <th scope="row"><?php esc_html_e('Processor', 'embed-forms'); ?></th>
         <td>
           <fieldset>
             <label><input type="radio" name="settings[payment][processor]" value="usaepay" <?php checked($p['processor'], 'usaepay'); ?>> USAePay</label>
@@ -261,30 +265,28 @@ final class Module {
             <?php
             printf(
               /* translators: 1: Settings > USAePay link, 2: Embed Forms > Settings link */
-              esc_html__('USAePay accounts are managed under %1$s, Stripe accounts under %2$s. Payments already made keep the processor and account they were made with: their refunds and recurring charges still go there after you change this.', 'embed-forms'),
+              esc_html__('Accounts are set up under %1$s and %2$s. Payments already made keep their processor for refunds and recurring charges.', 'embed-forms'),
               '<a href="' . esc_url(admin_url('options-general.php?page=usaepay-payments')) . '">' . esc_html__('Settings > USAePay', 'embed-forms') . '</a>',
-              '<a href="' . esc_url(admin_url('admin.php?page=' . Menu::PAGE_SETTINGS)) . '">' . esc_html__('Embed Forms > Settings', 'embed-forms') . '</a>'
+              '<a href="' . esc_url(admin_url('admin.php?page=' . Menu::PAGE_SETTINGS . '&section=payments')) . '">' . esc_html__('Embed Forms > Settings', 'embed-forms') . '</a>'
             );
             ?>
           </p>
-          <?php
-          ['gateway' => $gateway] = Processor::forForm($form);
-          $mode = Processor::mode($gateway);
-          if ($gateway === Processor::USAEPAY && !Processor::usaepayActive()) {
-            $problem = __('USAePay Payments is not active: this form cannot take payments.', 'embed-forms');
-          }
-          elseif (!Processor::checkoutReady($form)) {
-            $problem = $gateway === Processor::STRIPE && $p['stripe_account'] === ''
-              ? __('Choose a Stripe account.', 'embed-forms')
-              : sprintf(__('The keys of this account for %s mode are incomplete: this form cannot take payments.', 'embed-forms'), $mode === 'live' ? __('live', 'embed-forms') : __('test', 'embed-forms'));
-          }
-          ?>
-          <p><?php echo esc_html(sprintf(__('Mode: %s.', 'embed-forms'), $mode === 'sandbox' ? __('Test (sandbox)', 'embed-forms') : __('Live', 'embed-forms'))); ?>
-            <?php echo !empty($problem) ? '<strong>' . esc_html($problem) . '</strong>' : ''; ?></p>
         </td>
       </tr>
+      <tr>
+        <th scope="row"><?php esc_html_e('Mode', 'embed-forms'); ?></th>
+        <td><?php echo esc_html($mode === 'sandbox' ? __('Test (no real money)', 'embed-forms') : __('Live', 'embed-forms')); ?>
+          <p class="description"><?php esc_html_e('Set for all forms where the processor\'s accounts are managed.', 'embed-forms'); ?></p></td>
+      </tr>
+      <tr>
+        <th scope="row"><?php esc_html_e('Renewal receipts', 'embed-forms'); ?></th>
+        <td><label><input type="checkbox" name="settings[renewal_receipts]" value="1" <?php checked(!empty($form['settings']['renewal_receipts'])); ?>> <?php esc_html_e('Email the payer a receipt for each recurring payment', 'embed-forms'); ?></label>
+          <input type="hidden" name="settings_flags[]" value="renewal_receipts"></td>
+      </tr>
     </table>
+    <p class="description"><?php esc_html_e('Payment merge tags for the confirmation message and emails: {payment_summary} (a table of what was paid), {payment_amount}, {payment_frequency}, {transaction_id}, {card_brand}, {card_last4}, {next_payment_date}.', 'embed-forms'); ?></p>
     <?php
+    Sections::close();
   }
 
   public function entryPanels(array $entry, array $form): void {

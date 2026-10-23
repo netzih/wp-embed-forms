@@ -2,6 +2,7 @@
 
 namespace EmbedForms\Sheets;
 
+use EmbedForms\Admin\Sections;
 use EmbedForms\Admin\Menu;
 use EmbedForms\Db\Entries;
 use EmbedForms\Db\Forms;
@@ -166,7 +167,7 @@ final class Module {
         Menu::flash(sprintf(__('Not sent: %s', 'embed-forms'), $e->getMessage()), 'error');
       }
     }
-    wp_safe_redirect(Menu::formsUrl(['form' => $form['id'], 'tab' => 'settings']));
+    wp_safe_redirect(Menu::formsUrl(['form' => $form['id'], 'tab' => 'settings', 'section' => 'sheets']));
     exit;
   }
 
@@ -175,9 +176,9 @@ final class Module {
     $account = Settings::googleServiceAccount();
     $status = get_option(self::STATUS_OPTION, [])[$form['id']] ?? NULL;
     ?>
-    <h2 id="ef-google-sheets"><?php esc_html_e('Google Sheets', 'embed-forms'); ?></h2>
+    <?php Sections::open('sheets', __('Google Sheets', 'embed-forms'), '', 'settings[sheets][enabled]'); ?>
     <?php if (!$account) : ?>
-      <p class="description"><?php printf(esc_html__('To send entries to a Google Sheet, first save a Google service account under %s.', 'embed-forms'), '<a href="' . esc_url(admin_url('admin.php?page=' . Menu::PAGE_SETTINGS)) . '">' . esc_html__('Embed Forms > Settings', 'embed-forms') . '</a>'); ?></p>
+      <p class="description"><?php printf(esc_html__('Connect Google once in %s (about 10 minutes, step by step), then come back here.', 'embed-forms'), '<a href="' . esc_url(admin_url('admin.php?page=' . Menu::PAGE_SETTINGS . '&section=sheets')) . '">' . esc_html__('Embed Forms > Settings', 'embed-forms') . '</a>'); ?></p>
     <?php endif; ?>
     <table class="form-table" role="presentation">
       <tr>
@@ -185,10 +186,10 @@ final class Module {
         <td>
           <input type="hidden" name="settings[sheets][enabled]" value="0">
           <label><input type="checkbox" name="settings[sheets][enabled]" value="1" <?php checked($sh['enabled']); ?>> <?php esc_html_e('Add a row to a Google Sheet for every new entry', 'embed-forms'); ?></label>
-          <p class="description"><?php esc_html_e('Sent a moment after the submission (paid, when the form takes payments), including offline donations. Columns: entry, date, status, email, amount, every field (names and addresses in parts), transaction, card brand and last 4, and the page it was submitted on. Rows are not updated afterwards: edits, refunds and renewals stay in Embed Forms.', 'embed-forms'); ?></p>
+          <p class="description"><?php esc_html_e('Each entry is sent a moment after it is submitted (or paid), offline donations too. Later edits and refunds are not sent.', 'embed-forms'); ?></p>
         </td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[sheets][enabled]">
         <th scope="row"><label for="ef-sheet"><?php esc_html_e('Spreadsheet', 'embed-forms'); ?></label></th>
         <td><input type="text" id="ef-sheet" name="settings[sheets][spreadsheet]" value="<?php echo esc_attr($sh['spreadsheet'] !== '' ? 'https://docs.google.com/spreadsheets/d/' . $sh['spreadsheet'] . '/edit' : ''); ?>" class="large-text code" placeholder="https://docs.google.com/spreadsheets/d/…">
           <p class="description">
@@ -202,26 +203,27 @@ final class Module {
             <?php endif; ?>
           </p></td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[sheets][enabled]">
         <th scope="row"><label for="ef-sheet-tab"><?php esc_html_e('Tab', 'embed-forms'); ?></label></th>
         <td><input type="text" id="ef-sheet-tab" name="settings[sheets][tab]" value="<?php echo esc_attr($sh['tab']); ?>" class="regular-text" placeholder="<?php esc_attr_e('The first tab', 'embed-forms'); ?>">
-          <p class="description"><?php esc_html_e('The tab\'s name exactly as at the bottom of the sheet; it must exist. Row 1 holds the column names: you may reorder columns or add your own, but keep their names.', 'embed-forms'); ?></p></td>
+          <p class="description"><?php esc_html_e('As named at the bottom of the sheet. Row 1 gets the column names; you can reorder columns or add your own, but keep the names.', 'embed-forms'); ?></p></td>
       </tr>
       <?php if ($account && $sh['spreadsheet'] !== '') : ?>
-        <tr>
+        <tr data-ef-show-if="settings[sheets][enabled]">
           <th scope="row"><?php esc_html_e('Earlier entries', 'embed-forms'); ?></th>
           <td><a class="button" href="<?php echo esc_url(Menu::actionUrl('embed_forms_sheets_send_all', ['form' => $form['id']])); ?>"><?php esc_html_e('Send all entries', 'embed-forms'); ?></a>
-            <p class="description"><?php esc_html_e('Sends this form\'s entries that are not in the sheet yet (by the Entry column), so it is safe to use more than once. Save your changes above first.', 'embed-forms'); ?></p></td>
+            <p class="description"><?php esc_html_e('Adds entries that are not in the sheet yet; safe to click again. Save the form first if you changed the link.', 'embed-forms'); ?></p></td>
         </tr>
       <?php endif; ?>
       <?php if (is_array($status)) : ?>
-        <tr>
+        <tr data-ef-show-if="settings[sheets][enabled]">
           <th scope="row"><?php esc_html_e('Last result', 'embed-forms'); ?></th>
           <td><span style="color:<?php echo $status['ok'] ? '#00762f' : '#b32d2e'; ?>"><?php echo esc_html($status['message']); ?></span>
             <span class="description">(<?php echo esc_html(wp_date('Y-m-d H:i', (int) $status['at'])); ?>)</span></td>
         </tr>
       <?php endif; ?>
     </table>
+    <?php Sections::close(); ?>
     <?php
   }
 

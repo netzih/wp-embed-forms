@@ -44,3 +44,58 @@
 .ef-admin-parts label { display: grid; gap: 2px; }
 .ef-admin-parts small { color: #646970; }
 .ef-accents .ef-color { vertical-align: middle; width: 44px; height: 28px; padding: 0 2px; }
+
+/* Settings sections (Admin\Sections): list with states on the left, one
+   section at a time on the right. */
+.ef-sections { --ef-accent: var(--wp-admin-theme-color, #2271b1); max-width: 1180px; margin-top: 8px; }
+.ef-sections-js { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
+.ef-sections-js .ef-section { display: none; }
+.ef-sections-js .ef-section.is-active { display: block; }
+.ef-section-nav { position: sticky; top: 48px; }
+.ef-section-nav ul { margin: 0; padding: 0; list-style: none; border-left: 1px solid #dcdcde; }
+.ef-section-nav li { margin: 0; }
+.ef-section-nav button { display: block; width: 100%; margin: 0 0 0 -1px; padding: 9px 12px 9px 15px; border: 0; border-left: 3px solid transparent; background: none; text-align: left; cursor: pointer; color: #1d2327; border-radius: 0 4px 4px 0; }
+.ef-section-nav button:hover { background: #f0f0f1; }
+.ef-section-nav button:focus-visible { outline: 2px solid var(--ef-accent); outline-offset: -2px; }
+.ef-section-nav button.is-active { border-left-color: var(--ef-accent); background: #fff; box-shadow: 0 0 0 1px #dcdcde; }
+.ef-section-name { display: block; font-size: 14px; font-weight: 600; line-height: 1.4; }
+.ef-section-state { display: block; font-size: 12px; line-height: 1.4; color: #646970; }
+.ef-section-nav button.is-good .ef-section-state { color: #007a2b; }
+.ef-section-nav button.is-bad .ef-section-state { color: #b32d2e; font-weight: 600; }
+.ef-section { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 6px 28px 20px; margin-bottom: 20px; }
+.ef-section-title { font-size: 18px; margin: 18px 0 4px; }
+.ef-section-intro { color: #50575e; margin: 0 0 6px; max-width: 64ch; }
+.ef-section h3 { font-size: 14px; margin: 26px 0 0; padding-top: 18px; border-top: 1px solid #f0f0f1; }
+.ef-section h3:first-of-type { border-top: 0; padding-top: 0; }
+.ef-section .form-table th { width: 170px; padding-right: 16px; }
+.ef-section .form-table td .description { max-width: 64ch; }
+.ef-section [hidden] { display: none !important; }
+.ef-section .submit { margin-top: 8px; padding-bottom: 0; }
+@media (max-width: 960px) {
+  .ef-sections-js { grid-template-columns: 1fr; gap: 12px; }
+  .ef-section-nav { position: static; }
+  .ef-section-nav ul { display: flex; flex-wrap: wrap; gap: 4px; border-left: 0; }
+  .ef-section-nav button { margin: 0; border-left: 0; border-bottom: 3px solid transparent; border-radius: 4px 4px 0 0; padding: 6px 10px; }
+  .ef-section-nav button.is-active { border-bottom-color: var(--ef-accent); }
+  .ef-section { padding: 4px 16px 16px; }
+}
+
+/* Google Sheets setup guide (Embed Forms > Settings). */
+.ef-connected { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 14px; margin: 12px 0 4px; background: #edfaef; border: 1px solid #b8e6bf; border-radius: 4px; }
+.ef-connected .dashicons { color: #00a32a; }
+.ef-connected code { font-size: 13px; background: #fff; }
+.ef-steps { counter-reset: ef-step; list-style: none; margin: 14px 0 6px; padding: 0; max-width: 72ch; }
+.ef-steps > li { counter-increment: ef-step; position: relative; padding: 0 0 18px 42px; margin: 0; }
+.ef-steps > li::before { content: counter(ef-step); position: absolute; left: 0; top: -2px; width: 26px; height: 26px; border-radius: 50%; background: #f0f0f1; color: #1d2327; font-weight: 600; text-align: center; line-height: 26px; }
+.ef-steps > li::after { content: ""; position: absolute; left: 12px; top: 28px; bottom: 4px; width: 2px; background: #f0f0f1; }
+.ef-steps > li:last-child::after { display: none; }
+.ef-steps.is-done > li::before { content: "\2713"; background: #edfaef; color: #00a32a; }
+.ef-steps strong { display: block; font-size: 14px; margin-bottom: 2px; }
+.ef-steps p { margin: 2px 0 0; color: #50575e; }
+.ef-steps .ef-step-note { margin-top: 8px; padding: 8px 10px; background: #fcf9e8; border-left: 3px solid #dba617; color: #1d2327; }
+.ef-guide summary { cursor: pointer; color: var(--wp-admin-theme-color, #2271b1); margin: 10px 0; }
+.ef-keyfile { margin: 10px 0 0; max-width: 560px; border: 1px solid #dcdcde; border-radius: 4px; overflow: hidden; }
+.ef-keyfile-bar { padding: 5px 10px; background: #f6f7f7; border-bottom: 1px solid #dcdcde; font-size: 12px; color: #50575e; }
+.ef-keyfile pre { margin: 0; padding: 10px 12px; font-size: 12px; line-height: 1.65; background: #fff; overflow-x: auto; white-space: pre; }
+.ef-keyfile mark { background: #fff2b3; padding: 1px 2px; border-radius: 2px; }
+.ef-keyfile-legend { margin: 6px 0 0; font-size: 12px; color: #50575e; }

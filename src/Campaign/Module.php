@@ -2,6 +2,7 @@
 
 namespace EmbedForms\Campaign;
 
+use EmbedForms\Admin\Sections;
 use EmbedForms\Db\Forms;
 use EmbedForms\Embed;
 use EmbedForms\Payments\Money;
@@ -80,24 +81,24 @@ final class Module {
     $c = $form['settings']['campaign'];
     $types = array_column($form['schema']['fields'], 'type');
     ?>
-    <h2><?php esc_html_e('Campaign', 'embed-forms'); ?></h2>
+    <?php Sections::open('campaign', __('Campaign', 'embed-forms'), '', 'settings[campaign][enabled]'); ?>
     <table class="form-table" role="presentation">
       <tr>
         <th scope="row"><?php esc_html_e('Donor list', 'embed-forms'); ?></th>
         <td>
           <input type="hidden" name="settings[campaign][enabled]" value="0">
           <label><input type="checkbox" name="settings[campaign][enabled]" value="1" <?php checked($c['enabled']); ?>> <?php esc_html_e('Publish this form\'s running total and donor list for a campaign page', 'embed-forms'); ?></label>
-          <p class="description"><?php esc_html_e('Only the name to display (or Anonymous), and the amount and city if you choose below, are published. Test payments count only while the form is in test mode; offline donations always count.', 'embed-forms'); ?></p>
+          <p class="description"><?php esc_html_e('Only the display name (or Anonymous), and the amount and city if you choose, are published.', 'embed-forms'); ?></p>
           <?php if (!array_intersect($types, Fields::DONOR_TYPES)) : ?>
             <p class="description"><strong><?php esc_html_e('Tip: add the Display name and Give anonymously fields (Donor list group) so donors choose how they appear.', 'embed-forms'); ?></strong></p>
           <?php endif; ?>
         </td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[campaign][enabled]">
         <th scope="row"><label for="ef-goal"><?php esc_html_e('Goal', 'embed-forms'); ?></label></th>
         <td>$ <input type="text" inputmode="decimal" id="ef-goal" name="settings[campaign][goal]" value="<?php echo esc_attr($c['goal']); ?>" class="regular-text" style="width:10em"> <span class="description"><?php esc_html_e('Optional', 'embed-forms'); ?></span></td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[campaign][enabled]">
         <th scope="row"><?php esc_html_e('Show', 'embed-forms'); ?></th>
         <td>
           <input type="hidden" name="settings[campaign][show_amounts]" value="0">
@@ -106,44 +107,45 @@ final class Module {
           <label><input type="checkbox" name="settings[campaign][show_city]" value="1" <?php checked($c['show_city']); ?>> <?php esc_html_e('Each donor\'s city (from the address field; never for anonymous donors)', 'embed-forms'); ?></label>
         </td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[campaign][enabled]">
         <th scope="row"><?php esc_html_e('No display name', 'embed-forms'); ?></th>
         <td><fieldset>
           <label><input type="radio" name="settings[campaign][name_fallback]" value="initial" <?php checked($c['name_fallback'], 'initial'); ?>> <?php esc_html_e('Show the first name and last initial ("Mendel K.")', 'embed-forms'); ?></label><br>
           <label><input type="radio" name="settings[campaign][name_fallback]" value="anonymous" <?php checked($c['name_fallback'], 'anonymous'); ?>> <?php esc_html_e('Show Anonymous', 'embed-forms'); ?></label>
         </fieldset></td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[campaign][enabled]">
         <th scope="row"><label for="ef-max-donors"><?php esc_html_e('Donors listed', 'embed-forms'); ?></label></th>
         <td><?php esc_html_e('The most recent', 'embed-forms'); ?> <input type="number" min="1" max="<?php echo (int) Totals::MAX_RECENT; ?>" id="ef-max-donors" name="settings[campaign][max_donors]" value="<?php echo (int) $c['max_donors']; ?>" class="small-text">
-          <p class="description"><?php esc_html_e('How many donors the donor list and its notices show. The total and donor count always include everyone.', 'embed-forms'); ?></p></td>
+          <p class="description"><?php esc_html_e('The total and donor count always include everyone.', 'embed-forms'); ?></p></td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[campaign][enabled]">
         <th scope="row"><label for="ef-since"><?php esc_html_e('Count from', 'embed-forms'); ?></label></th>
         <td><input type="date" id="ef-since" name="settings[campaign][since]" value="<?php echo esc_attr($c['since']); ?>">
-          <p class="description"><?php esc_html_e('Only donations made on or after this day count, for the total, the donor count and the list. Leave empty to count every donation this form ever took. A recurring gift started earlier counts its payments from this day on.', 'embed-forms'); ?></p></td>
+          <p class="description"><?php esc_html_e('Only donations from this day on count. Empty counts every donation this form ever took.', 'embed-forms'); ?></p></td>
       </tr>
-      <tr>
+      <tr data-ef-show-if="settings[campaign][enabled]">
         <th scope="row"><label for="ef-offset"><?php esc_html_e('Raised elsewhere', 'embed-forms'); ?></label></th>
         <td>$ <input type="text" inputmode="decimal" id="ef-offset" name="settings[campaign][offset_amount]" value="<?php echo esc_attr($c['offset_amount']); ?>" style="width:10em">
           <?php esc_html_e('from', 'embed-forms'); ?> <input type="number" min="0" name="settings[campaign][offset_donors]" value="<?php echo (int) $c['offset_donors']; ?>" class="small-text" aria-label="<?php esc_attr_e('Donors elsewhere', 'embed-forms'); ?>"> <?php esc_html_e('donors', 'embed-forms'); ?>
-          <p class="description"><?php esc_html_e('Added to the total and donor count, for money raised outside this form that you do not enter one by one. To list a donor by name, add an offline donation from the Entries screen instead.', 'embed-forms'); ?></p></td>
+          <p class="description"><?php esc_html_e('Added to the total and donor count. To list a donor by name, add an offline donation in Entries instead.', 'embed-forms'); ?></p></td>
       </tr>
       <?php if ($c['enabled']) :
         $totals = Totals::forForm($form);
         ?>
-        <tr>
+        <tr data-ef-show-if="settings[campaign][enabled]">
           <th scope="row"><?php esc_html_e('Now', 'embed-forms'); ?></th>
           <td><?php echo esc_html(sprintf(_n('%1$s raised from %2$s donor', '%1$s raised from %2$s donors', $totals['donors'], 'embed-forms'), Money::format($totals['raised']), number_format_i18n($totals['donors']))); ?>
             <?php echo $totals['goal'] ? esc_html(sprintf(__('(%s%% of the goal)', 'embed-forms'), $totals['percent'])) : ''; ?></td>
         </tr>
-        <tr>
+        <tr data-ef-show-if="settings[campaign][enabled]">
           <th scope="row"><?php esc_html_e('On the campaign page', 'embed-forms'); ?></th>
           <td><textarea class="large-text code" rows="7" readonly><?php echo esc_textarea($this->snippet($form)); ?></textarea>
             <p class="description"><?php esc_html_e('campaign.js fills the elements marked data-ef-raised, data-ef-goal, data-ef-donors, data-ef-percent and data-ef-progress (its width), refreshes every 30 seconds and right after a donation, and sends the events embedforms:campaign (all data) and embedforms:donation (each new donor) for the page to show donors its own way. Without its own list, a data-ef-donor-list element gets a simple one.', 'embed-forms'); ?></p></td>
         </tr>
       <?php endif; ?>
     </table>
+    <?php Sections::close(); ?>
     <?php
   }
 

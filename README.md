@@ -112,11 +112,11 @@ these looks exactly as before.
 A form can add a row to a Google Sheet for every new entry (Settings >
 Google Sheets on the form).
 
-- **Setup, once:** in console.cloud.google.com create a project, enable the
-  Google Sheets API, create a service account (IAM & Admin > Service
-  accounts) and add a JSON key to it. Paste the key under **Embed Forms >
-  Settings > Google Sheets**; it is stored in the settings option and never
-  shown again. Then share each spreadsheet with the service account's email
+- **Setup, once:** **Embed Forms > Settings > Google Sheets** walks through
+  it with links: create a Google Cloud project, enable the Google Sheets
+  API, create a service account and download a JSON key for it, then choose
+  the key file there (stored in the settings option, never shown again).
+  **Check the connection** signs in to Google to test the key. Then share each spreadsheet with the service account's email
   as **Editor** and paste the spreadsheet's link into the form (optionally a
   tab name; the first tab otherwise).
 - **What is sent:** entries that are submitted, or paid when the form takes

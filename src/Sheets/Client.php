@@ -68,6 +68,20 @@ final class Client {
     $this->request('POST', $spreadsheet . '/values/' . rawurlencode($range) . ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS', ['values' => $rows]);
   }
 
+  /**
+   * Sign in to Google afresh, to check that the saved key works.
+   *
+   * @throws \RuntimeException
+   */
+  public function verify(): void {
+    delete_transient($this->tokenKey());
+    $this->token();
+  }
+
+  private function tokenKey(): string {
+    return 'embed_forms_gtoken_' . md5($this->account['client_email'] . "\n" . $this->account['private_key_id']);
+  }
+
   private function request(string $method, string $path, ?array $body = NULL): array {
     /**
      * Replace Google's answer, e.g. with a fake one in a test site. Return
@@ -110,7 +124,7 @@ final class Client {
    * An access token, from the cache while it has a few minutes left.
    */
   private function token(): string {
-    $key = 'embed_forms_gtoken_' . md5($this->account['client_email'] . "\n" . $this->account['private_key_id']);
+    $key = $this->tokenKey();
     $cached = get_transient($key);
     if (is_string($cached) && $cached !== '') {
       return $cached;
