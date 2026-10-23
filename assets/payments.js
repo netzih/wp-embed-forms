@@ -33,6 +33,7 @@
   // payment that stopped for the bank's check (3D Secure).
   var stripe = { client: null, element: null, resume: false, waiting: false };
   var totals = [];
+  var followers = [];
 
   // ---------------------------------------------------------------- money
   // Mirrors EmbedForms\Payments\Money.
@@ -90,12 +91,23 @@
       if (f.type === 'amount') {
         cents += toCents(String(v || '')) || 0;
       } else if (f.type === 'product') {
-        cents += Math.max(0, parseInt(v, 10) || 0) * (toCents(String(f.price || '0')) || 0);
+        cents += followedQuantity(f, values, api) * (toCents(String(f.price || '0')) || 0);
       } else if (f.type === 'frequency' && (f.frequencies || []).indexOf(v) !== -1) {
         frequency = v;
       }
     });
     return { cents: cents, total: fromCents(cents), frequency: frequency };
+  }
+
+  // A product's quantity; one that follows another product takes that one's
+  // (Validator::followedQuantity()).
+  function followedQuantity(f, values, api) {
+    var v = values[f.id];
+    if (f.quantity_of) {
+      var source = fields.filter(function (x) { return x.id === f.quantity_of; })[0];
+      v = source && source.type === 'product' && source.quantity && api.isVisible(source.id) ? Math.min(parseInt(values[source.id], 10) || 0, source.max_quantity || 1) : 0;
+    }
+    return Math.max(0, parseInt(v, 10) || 0);
   }
 
   // ---------------------------------------------------------------- amount
@@ -218,13 +230,29 @@
   EF.types.product = {
     render: function (field, api) {
       var price = api.el('span', { className: 'ef-product-price', text: money(toCents(field.price) || 0) });
+      if (!field.quantity && field.quantity_of) {
+        var count = api.el('span', { className: 'ef-product-count', text: '0' });
+        followers.push({ field: field, count: count });
+        return { el: api.el('div', { className: 'ef-product' }, [price, api.el('span', { className: 'ef-times', 'aria-hidden': 'true', text: '×' }), count]), get: function () { return '0'; }, set: function () {}, focus: function () {} };
+      }
       if (!field.quantity) {
         return { el: api.el('div', { className: 'ef-product' }, [price]), get: function () { return '1'; }, set: function () {}, focus: function () {} };
       }
-      var input = api.el('input', { type: 'number', min: '0', max: String(field.max_quantity || 10), step: '1', inputmode: 'numeric', className: 'ef-input ef-qty', id: api.inputId(field), 'aria-describedby': api.describedBy(field) });
+      var max = field.max_quantity || 10;
+      var input = api.el('input', { type: 'number', min: '0', max: String(max), step: '1', inputmode: 'numeric', className: 'ef-qty', id: api.inputId(field), 'aria-describedby': api.describedBy(field) });
       input.value = field['default'] !== undefined && field['default'] !== '' ? String(field['default']) : '0';
+      // − and + step within 0 (1 when required) and the maximum.
+      function step(by) {
+        var q = Math.min(max, Math.max(field.required ? 1 : 0, (parseInt(input.value, 10) || 0) + by));
+        if (String(q) !== input.value) {
+          input.value = String(q);
+          changed(input);
+        }
+      }
+      var less = api.el('button', { type: 'button', className: 'ef-stepper-btn', 'aria-label': i18n.decrease || 'Decrease quantity', text: '−', onclick: function () { step(-1); } });
+      var more = api.el('button', { type: 'button', className: 'ef-stepper-btn', 'aria-label': i18n.increase || 'Increase quantity', text: '+', onclick: function () { step(1); } });
       return {
-        el: api.el('div', { className: 'ef-product' }, [price, api.el('span', { className: 'ef-times', 'aria-hidden': 'true', text: '×' }), input]),
+        el: api.el('div', { className: 'ef-product' }, [price, api.el('div', { className: 'ef-stepper' }, [less, input, more])]),
         get: function () { return input.value; },
         set: function (v) { input.value = v === null || v === undefined ? '' : String(v); },
         focus: function () { input.focus(); }
@@ -446,6 +474,10 @@
     var p = pricing(api);
     var suffix = p.frequency !== 'once' && i18n.per && i18n.per[p.frequency] ? ' ' + i18n.per[p.frequency] : '';
     totals.forEach(function (node) { node.textContent = money(p.cents) + suffix; });
+    if (followers.length) {
+      var values = api.visibleValues();
+      followers.forEach(function (x) { x.count.textContent = String(followedQuantity(x.field, values, api)); });
+    }
     var paying = card.field && api.isVisible(card.field.id) && p.cents > 0;
     api.setSubmitLabel(paying ? format(i18n.payNow || 'Pay %s', money(p.cents) + suffix) : null);
     if (card.applePayBox) {

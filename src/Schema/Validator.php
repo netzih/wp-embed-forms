@@ -40,6 +40,9 @@ final class Validator {
         continue;
       }
       $value = $clean[$id];
+      if ($field['type'] === 'product' && ($field['quantity_of'] ?? '') !== '') {
+        $value = self::followedQuantity($inputs, $field['quantity_of'], $clean, $visible);
+      }
       $error = in_array($field['type'], $skip, TRUE) ? NULL : self::check($enforceRequired ? $field : ['required' => FALSE] + $field, $value);
       if ($error !== NULL) {
         $errors[$id] = $error;
@@ -47,6 +50,19 @@ final class Validator {
       $values[$id] = $value;
     }
     return ['values' => $values, 'errors' => $errors];
+  }
+
+  /**
+   * The quantity a product takes from the product it follows: none while
+   * that product is hidden or has no quantity box.
+   */
+  private static function followedQuantity(array $inputs, string $source, array $clean, array $visible): string {
+    $followed = $inputs[$source] ?? NULL;
+    if (!$followed || $followed['type'] !== 'product' || empty($followed['quantity']) || empty($visible[$source])) {
+      return '0';
+    }
+    $quantity = (string) $clean[$source];
+    return preg_match('/^\d{1,4}$/', $quantity) ? (string) min((int) $quantity, (int) $followed['max_quantity']) : '0';
   }
 
   public static function isEmpty(mixed $value): bool {
@@ -111,6 +127,10 @@ final class Validator {
       return self::checkAmount($field, (string) $value);
     }
     if ($type === 'product') {
+      if (($field['quantity_of'] ?? '') !== '') {
+        // Set from the product it follows, which is checked itself.
+        return NULL;
+      }
       if (!preg_match('/^\d{1,4}$/', (string) $value) && (string) $value !== '') {
         return __('Please enter a quantity.', 'embed-forms');
       }

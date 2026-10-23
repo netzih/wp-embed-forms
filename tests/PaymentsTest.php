@@ -103,6 +103,32 @@ final class PaymentsTest extends TestCase {
     self::assertSame('5.00', Pricing::compute($single, Validator::validate($single, ['p' => '99'])['values'])['total']);
   }
 
+  public function testProductFollowsAnotherQuantity(): void {
+    $s = FormSchema::normalize(['fields' => [
+      ['id' => 'delivery', 'type' => 'radio', 'options' => [['label' => 'Pickup', 'value' => 'pickup'], ['label' => 'Shipping', 'value' => 'ship']]],
+      ['id' => 'book', 'type' => 'product', 'label' => 'Book', 'price' => '24.99', 'quantity' => TRUE, 'max_quantity' => 50, 'required' => TRUE],
+      ['id' => 'shipping', 'type' => 'product', 'label' => 'Shipping', 'price' => '5', 'quantity_of' => 'book', 'conditions' => ['rules' => [['field' => 'delivery', 'op' => 'is', 'value' => 'ship']]]],
+    ]]);
+    self::assertSame('book', $s['fields'][2]['quantity_of']);
+
+    // Shipping is charged once per copy; what the browser sends is ignored.
+    $r = Validator::validate($s, ['delivery' => 'ship', 'book' => '3', 'shipping' => '99']);
+    self::assertSame([], $r['errors']);
+    self::assertSame('3', $r['values']['shipping']);
+    $p = Pricing::compute($s, $r['values']);
+    self::assertSame('89.97', $p['total']);
+    self::assertSame(['74.97', '15.00'], array_column($p['lines'], 'amount'));
+
+    // Pickup hides shipping, so it adds nothing.
+    $r = Validator::validate($s, ['delivery' => 'pickup', 'book' => '3']);
+    self::assertArrayNotHasKey('shipping', $r['values']);
+    self::assertSame('74.97', Pricing::compute($s, $r['values'])['total']);
+
+    // A product with its own quantity box ignores quantity_of.
+    $own = FormSchema::normalize(['fields' => [['id' => 'a', 'type' => 'product', 'quantity' => TRUE, 'quantity_of' => 'b']]]);
+    self::assertSame('', $own['fields'][0]['quantity_of']);
+  }
+
   public function testPayer(): void {
     $s = FormSchema::normalize(['fields' => [
       ['id' => 'n', 'type' => 'name'],

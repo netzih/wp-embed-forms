@@ -476,6 +476,12 @@
     if (field.type === 'product') {
       add(h(C.TextControl, { key: 'price', label: __('Price ($)', 'embed-forms'), inputMode: 'decimal', value: field.price || '', onChange: function (v) { set({ price: v }); } }));
       add(h(C.ToggleControl, { key: 'qty', label: __('Payer chooses the quantity', 'embed-forms'), checked: !!field.quantity, onChange: function (v) { set({ quantity: v }); } }));
+      if (!field.quantity) {
+        var counted = props.fields.filter(function (f) { return f.type === 'product' && f.quantity && f.id !== field.id; });
+        if (counted.length || field.quantity_of) {
+          add(h(C.SelectControl, { key: 'qtyof', label: __('Quantity follows', 'embed-forms'), help: __('Charge this once per item of another product, such as shipping per copy.', 'embed-forms'), value: field.quantity_of || '', options: [{ value: '', label: __('Nothing (charged once)', 'embed-forms') }].concat(counted.map(function (f) { return { value: f.id, label: f.label || f.id }; })), onChange: function (v) { set({ quantity_of: v }); } }));
+        }
+      }
       if (field.quantity) {
         add(h(C.TextControl, { key: 'maxqty', label: __('Maximum quantity', 'embed-forms'), type: 'number', value: field.max_quantity || 10, onChange: function (v) { set({ max_quantity: v }); } }));
       }

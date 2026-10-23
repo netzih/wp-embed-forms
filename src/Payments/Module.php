@@ -59,6 +59,8 @@ final class Module {
         'otherAmount' => __('Other amount', 'embed-forms'),
         'total' => __('Total', 'embed-forms'),
         'quantity' => __('Quantity', 'embed-forms'),
+        'decrease' => __('Decrease quantity', 'embed-forms'),
+        'increase' => __('Increase quantity', 'embed-forms'),
         'orCard' => __('or pay by card', 'embed-forms'),
         'secureNote' => $gateway === Processor::STRIPE
           ? __('Card details are entered securely in a form hosted by Stripe.', 'embed-forms')

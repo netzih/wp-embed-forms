@@ -199,6 +199,9 @@ final class FormSchema {
       $field['price'] = \EmbedForms\Payments\Money::normalize($in['price'] ?? '') ?? '0.00';
       $field['quantity'] = !empty($in['quantity']);
       $field['max_quantity'] = max(1, min(1000, (int) ($in['max_quantity'] ?? 10)));
+      // Without its own quantity box a product can take another product's
+      // quantity (shipping per copy).
+      $field['quantity_of'] = $field['quantity'] ? '' : preg_replace('/[^A-Za-z0-9_\-]/', '', (string) ($in['quantity_of'] ?? ''));
     }
     if ($type === 'frequency') {
       $allowed = array_values(array_intersect(Fields::FREQUENCIES, is_array($in['frequencies'] ?? NULL) ? $in['frequencies'] : ['once', 'month']));
