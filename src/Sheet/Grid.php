@@ -40,7 +40,7 @@ final class Grid {
    *   Input fields keyed by id (FormSchema::inputs()).
    * @param array $options
    *   'store' => TRUE adds the Order column (store forms); 'manager' => TRUE
-   *   (the store manager page) makes Order and Tracking changeable and adds
+   *   (the manager page) makes Order and Tracking changeable and adds
    *   Tracking and Balance.
    *
    * @return array<int, array{key: string, label: string, field: ?string, part: ?string, edit: ?string, options: array, numeric: bool}>

@@ -101,7 +101,7 @@ final class EntriesScreen {
       <h1 class="wp-heading-inline"><?php esc_html_e('Entries', 'embed-forms'); ?></h1>
       <?php if ($form) : ?>
         <a class="page-title-action" href="<?php echo esc_url(EntryEditor::addUrl((int) $form['id'])); ?>"><?php esc_html_e('Add offline donation', 'embed-forms'); ?></a>
-        <a class="page-title-action" href="<?php echo esc_url(\EmbedForms\Orders\Module::url((int) $form['id'])); ?>" target="_blank" rel="noopener"><?php esc_html_e('Store manager page', 'embed-forms'); ?></a>
+        <a class="page-title-action" href="<?php echo esc_url(\EmbedForms\Orders\Module::url((int) $form['id'])); ?>" target="_blank" rel="noopener"><?php esc_html_e('Manager page', 'embed-forms'); ?></a>
       <?php endif; ?>
       <hr class="wp-header-end">
       <?php Menu::renderFlash(); ?>

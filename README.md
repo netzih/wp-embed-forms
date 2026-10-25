@@ -167,7 +167,7 @@ A form's entries as a sheet for people without a WordPress login (Settings
   indexed or framed, and sends no referrer. A duplicated form gets no link
   or password. Changes made here are not sent to Google Sheets.
 
-## Statuses and the store manager page
+## Statuses and the manager page
 
 Every entry shows a **payment status**, worked out from its payments:
 Paid, Unpaid, Balance due, Refund due, Partly refunded, Refunded, Pending,
@@ -175,17 +175,17 @@ Failed or No payment. A form with a product is a **store form**: its
 entries also have an **order status** set by a person (New, Ready,
 Shipped, Picked up, Cancelled) and a tracking number. Both are on the
 entry screen in wp-admin (with an order filter and column on the entries
-list), on the shared entries page (view only) and on the store manager
+list), on the shared entries page (view only) and on the form manager
 page.
 
-The **store manager page** (`/?ef-orders=<form id>`, Settings > Store
+The **manager page** (`/?ef-orders=<form id>`, Settings > Store
 manager page on the form) runs a form's entries for people signed in to
 WordPress:
 
 - **Access:** administrators can open every form. Anyone else needs the
-  **Store manager** role (only *read* plus `embed_forms_manage_orders`)
-  and the form ticked on their profile (Users > Edit > Store manager
-  page). Store managers land on their orders after signing in. Every
+  **Form manager** role (only *read* plus `embed_forms_manage_orders`)
+  and the form ticked on their profile (Users > Edit > Form manager
+  page). Form managers land on their orders after signing in. Every
   request checks the person and form again; changes need a WordPress
   nonce.
 - **Sheet:** like the shared entries page (find, filters, sorting,

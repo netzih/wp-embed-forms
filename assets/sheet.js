@@ -1,4 +1,4 @@
-/* Embed Forms: the shared entries page and the store manager page. Find,
+/* Embed Forms: the shared entries page and the manager page. Find,
    filter and sort entries, with totals for what is shown; change a white
    cell in place: Enter or a click opens it, Enter saves, Escape cancels,
    Tab saves and moves on. Each change is saved on its own. */

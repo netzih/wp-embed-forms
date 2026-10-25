@@ -11,7 +11,7 @@ use EmbedForms\Render\Design;
 use EmbedForms\Schema\FormSchema;
 
 /**
- * What the shared entries page (Sheet\Module) and the store manager page
+ * What the shared entries page (Sheet\Module) and the manager page
  * (Orders\Module) have in common: a bare page, the rows with their money
  * and order status, the sheet table with filters, sorting and totals
  * (assets/sheet.js), and the downloads.

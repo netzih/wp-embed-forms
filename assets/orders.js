@@ -1,4 +1,4 @@
-/* Embed Forms: the store manager page, on top of sheet.js. An order's
+/* Embed Forms: the manager page, on top of sheet.js. An order's
    panel opens from its number; its forms post to the page and answer with
    the panel and the row as they now are. "Add order" opens a blank one. */
 (function (document) {

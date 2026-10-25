@@ -20,7 +20,7 @@ use EmbedForms\Sheet\Page;
 use EmbedForms\Sheet\Xlsx;
 
 /**
- * The store manager page (/?ef-orders=FORM): a form's entries as a sheet
+ * The manager page (/?ef-orders=FORM): a form's entries as a sheet
  * for people signed in to WordPress who manage the form (Access), with
  * full control of each entry:
  *
@@ -239,7 +239,7 @@ final class Module {
     $columns = Page::columns($form, TRUE);
     $key = (string) ($post['column'] ?? '');
     if ($key !== 'order' && $key !== 'tracking') {
-      SheetModule::saveCell($form, $entry, $columns, $post, sprintf(__('%s changed on the store manager page:', 'embed-forms'), Service::who()) . ' %1$s from "%2$s" to "%3$s".', TRUE);
+      SheetModule::saveCell($form, $entry, $columns, $post, sprintf(__('%s changed on the manager page:', 'embed-forms'), Service::who()) . ' %1$s from "%2$s" to "%3$s".', TRUE);
     }
     $before = $key === 'order' ? Status::orderLabel((string) $entry['order_status']) : (string) $entry['tracking'];
     if ($before !== (string) ($post['before'] ?? '')) {
@@ -742,7 +742,7 @@ final class Module {
     $store = Status::isStore($form['schema']);
     $o = $form['settings']['orders'];
     $managers = Access::managers((int) $form['id']);
-    Sections::open('orders', __('Store manager page', 'embed-forms'), $managers ? sprintf(_n('%s person', '%s people', count($managers), 'embed-forms'), count($managers)) : '');
+    Sections::open('orders', __('Manager page', 'embed-forms'), $managers ? sprintf(_n('%s person', '%s people', count($managers), 'embed-forms'), count($managers)) : '');
     ?>
     <p class="ef-section-intro"><?php echo $store
       ? esc_html__('A page to run this form\'s orders: order status and tracking, quantities, refunds, cancelling, notes, orders taken by phone, and a packing list. People sign in with their WordPress account.', 'embed-forms')
@@ -769,11 +769,11 @@ final class Module {
               <?php endforeach; ?>
             </ul>
           <?php else : ?>
-            <p><?php esc_html_e('No store managers for this form yet.', 'embed-forms'); ?></p>
+            <p><?php esc_html_e('No form managers for this form yet.', 'embed-forms'); ?></p>
           <?php endif; ?>
           <p class="description"><?php echo wp_kses(sprintf(
             /* translators: %s: link to add a user */
-            __('To add someone, <a href="%s">add a user</a> with the Store manager role, then tick this form on their profile.', 'embed-forms'),
+            __('To add someone, <a href="%s">add a user</a> with the Form manager role, then tick this form on their profile.', 'embed-forms'),
             esc_url(admin_url('user-new.php'))
           ), ['a' => ['href' => []]]); ?></p>
         </td>
@@ -836,7 +836,7 @@ final class Module {
             <p><label><input type="checkbox" name="notify" value="1"> <?php esc_html_e('When shipped, email the customer', 'embed-forms'); ?></label></p>
           <?php endif; ?>
           <p><button type="submit" class="button"><?php esc_html_e('Save order', 'embed-forms'); ?></button>
-            <a href="<?php echo esc_url(self::url((int) $form['id'])); ?>" target="_blank" rel="noopener" style="margin-left:8px"><?php esc_html_e('Store manager page', 'embed-forms'); ?></a></p>
+            <a href="<?php echo esc_url(self::url((int) $form['id'])); ?>" target="_blank" rel="noopener" style="margin-left:8px"><?php esc_html_e('Manager page', 'embed-forms'); ?></a></p>
         </form>
       </div>
     </div>

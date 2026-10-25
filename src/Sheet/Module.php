@@ -246,7 +246,7 @@ final class Module {
 
   /**
    * Change one answer cell and answer with the cell (and its row) as it
-   * now is. Also used by the store manager page.
+   * now is. Also used by the manager page.
    *
    * @param string $note
    *   The history line: 1 column, 2 before, 3 after.

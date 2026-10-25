@@ -18,7 +18,7 @@ use EmbedForms\Schema\FormSchema;
 use EmbedForms\Schema\Validator;
 
 /**
- * What a store manager (or an administrator) does to an entry. Every
+ * What a form manager (or an administrator) does to an entry. Every
  * change is written to the entry's history with the person's name. Card
  * refunds go through Payments\Refunds, the same as the entry screen; money
  * returned by cash or check is only recorded.

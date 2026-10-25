@@ -117,7 +117,7 @@ final class FormSettings {
         // wp_hash_password() of the password.
         'password_hash' => '',
       ],
-      // The store manager page (Orders\Module): the email sent when an
+      // The manager page (Orders\Module): the email sent when an
       // order is marked shipped.
       'orders' => [
         'shipped_email' => TRUE,

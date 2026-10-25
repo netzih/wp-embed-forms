@@ -6,14 +6,14 @@ use EmbedForms\Db\Forms;
 use EmbedForms\Plugin;
 
 /**
- * Who may open a form's store manager page: administrators (all forms),
- * and people with the Store manager role for the forms ticked on their
- * profile (Users > Edit). Store managers land on their orders after
- * signing in; in wp-admin they have only their profile and an Orders link.
+ * Who may open a form's manager page: administrators (all forms),
+ * and people with the Form manager role for the forms ticked on their
+ * profile (Users > Edit). Form managers land on their forms after
+ * signing in; in wp-admin they have only their profile and a My forms link.
  */
 final class Access {
 
-  public const ROLE = 'ef_store_manager';
+  public const ROLE = 'ef_form_manager';
 
   public const CAPABILITY = 'embed_forms_manage_orders';
 
@@ -21,7 +21,12 @@ final class Access {
 
   private const ROLE_OPTION = 'embed_forms_roles';
 
-  private const ROLE_VERSION = '1';
+  private const ROLE_VERSION = '2';
+
+  /**
+   * The role's first name (beta.14), moved to ROLE.
+   */
+  private const OLD_ROLE = 'ef_store_manager';
 
   public function register(): void {
     add_action('init', [self::class, 'ensureRole'], 2);
@@ -40,7 +45,12 @@ final class Access {
       return;
     }
     remove_role(self::ROLE);
-    add_role(self::ROLE, __('Store manager', 'embed-forms'), ['read' => TRUE, self::CAPABILITY => TRUE]);
+    add_role(self::ROLE, __('Form manager', 'embed-forms'), ['read' => TRUE, self::CAPABILITY => TRUE]);
+    foreach (get_users(['role' => self::OLD_ROLE, 'number' => 500]) as $user) {
+      $user->remove_role(self::OLD_ROLE);
+      $user->add_role(self::ROLE);
+    }
+    remove_role(self::OLD_ROLE);
     update_option(self::ROLE_OPTION, self::ROLE_VERSION, FALSE);
   }
 
@@ -76,7 +86,7 @@ final class Access {
   }
 
   /**
-   * Store managers given this form, for its settings.
+   * Form managers given this form, for its settings.
    *
    * @return \WP_User[]
    */
@@ -100,9 +110,9 @@ final class Access {
     if (self::isAdmin() || !current_user_can(self::CAPABILITY)) {
       return;
     }
-    add_menu_page(__('Orders', 'embed-forms'), __('Orders', 'embed-forms'), self::CAPABILITY, 'embed-forms-orders', static function (): void {
-      echo '<div class="wrap"><h1>' . esc_html__('Orders', 'embed-forms') . '</h1><p><a class="button button-primary" href="' . esc_url(Module::url(0)) . '">' . esc_html__('Open the store manager page', 'embed-forms') . '</a></p></div>';
-    }, 'dashicons-cart', 3);
+    add_menu_page(__('My forms', 'embed-forms'), __('My forms', 'embed-forms'), self::CAPABILITY, 'embed-forms-orders', static function (): void {
+      echo '<div class="wrap"><h1>' . esc_html__('My forms', 'embed-forms') . '</h1><p><a class="button button-primary" href="' . esc_url(Module::url(0)) . '">' . esc_html__('Open the manager page', 'embed-forms') . '</a></p></div>';
+    }, 'dashicons-feedback', 3);
   }
 
   public function profileFields(\WP_User $user): void {
@@ -112,13 +122,13 @@ final class Access {
     $forms = Forms::all();
     $chosen = self::formIds($user->ID);
     ?>
-    <h2 id="embed-forms-orders"><?php esc_html_e('Store manager page', 'embed-forms'); ?></h2>
+    <h2 id="embed-forms-orders"><?php esc_html_e('Manager page', 'embed-forms'); ?></h2>
     <table class="form-table" role="presentation">
       <tr>
         <th scope="row"><?php esc_html_e('Forms they manage', 'embed-forms'); ?></th>
         <td>
           <?php if (!user_can($user, self::CAPABILITY)) : ?>
-            <p class="description"><?php esc_html_e('Give this person the Store manager role (above) and save, then choose their forms here.', 'embed-forms'); ?></p>
+            <p class="description"><?php esc_html_e('Give this person the Form manager role (above) and save, then choose their forms here.', 'embed-forms'); ?></p>
           <?php else : ?>
             <input type="hidden" name="ef_manager_forms_sent" value="1">
             <?php wp_nonce_field('embed_forms_manager_forms', 'ef_manager_nonce'); ?>
