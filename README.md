@@ -158,12 +158,60 @@ A form's entries as a sheet for people without a WordPress login (Settings
   first, the change is refused and the cell shows theirs. Changes need a
   per-session token, so another site cannot make them.
 - **Shows** submitted, paid and refunded entries, newest first (up to
-  3,000), with find-in-entries, and downloads as CSV (formulas
-  neutralised) or Excel (inline text, needs PHP's zip extension).
+  3,000), with find, filters by payment and order status, sorting by any
+  column, and totals for what is shown (entries, copies of each product,
+  money received, balances), and downloads as CSV (formulas neutralised)
+  or Excel (inline text, needs PHP's zip extension).
 - The page is never cached (also not by Cloudflare's edge cache: it sets
   `cf-edge-cache: no-cache` and the `cloudflare_use_cache` filter),
   indexed or framed, and sends no referrer. A duplicated form gets no link
   or password. Changes made here are not sent to Google Sheets.
+
+## Statuses and the store manager page
+
+Every entry shows a **payment status**, worked out from its payments:
+Paid, Unpaid, Balance due, Refund due, Partly refunded, Refunded, Pending,
+Failed or No payment. A form with a product is a **store form**: its
+entries also have an **order status** set by a person (New, Ready,
+Shipped, Picked up, Cancelled) and a tracking number. Both are on the
+entry screen in wp-admin (with an order filter and column on the entries
+list), on the shared entries page (view only) and on the store manager
+page.
+
+The **store manager page** (`/?ef-orders=<form id>`, Settings > Store
+manager page on the form) runs a form's entries for people signed in to
+WordPress:
+
+- **Access:** administrators can open every form. Anyone else needs the
+  **Store manager** role (only *read* plus `embed_forms_manage_orders`)
+  and the form ticked on their profile (Users > Edit > Store manager
+  page). Store managers land on their orders after signing in. Every
+  request checks the person and form again; changes need a WordPress
+  nonce.
+- **Sheet:** like the shared entries page (find, filters, sorting,
+  totals, downloads) with Order and Tracking changeable in place and a
+  Balance column. The entry number opens the entry's panel.
+- **Panel:** order status and tracking, with an optional "shipped" email
+  (subject and message per form; `{tracking_number}`, `{tracking_link}`
+  for UPS, USPS and FedEx numbers); quantities, with the total worked out
+  again (following products too, and shipping dropped on a pickup order),
+  never charged again: a higher total shows as a balance due, a lower one
+  as a refund due; card refunds (the same code as the entry screen) and
+  money received or given back by cash or check; cancel (optionally
+  refunding everything) and reopen; stop a recurring payment; resend the
+  confirmation email; notes; all answers.
+- **Add order:** an order taken by phone or in person, unpaid or paid by
+  cash, check and the like (cards cannot be charged here), optionally
+  sending the form's emails.
+- **Packing list:** open orders (or new, ready, shipped, picked up) to
+  print, with customer, delivery choices and address, items, payment
+  status and notes, and totals per product.
+- Every change is written to the entry's history with the person's name.
+  Never cached, indexed or framed (same headers as the shared entries
+  page).
+
+Donation forms get the same page without order status, quantities,
+cancelling or the packing list.
 
 ## Campaigns
 

@@ -117,6 +117,13 @@ final class FormSettings {
         // wp_hash_password() of the password.
         'password_hash' => '',
       ],
+      // The store manager page (Orders\Module): the email sent when an
+      // order is marked shipped.
+      'orders' => [
+        'shipped_email' => TRUE,
+        'shipped_subject' => 'Your order has shipped',
+        'shipped_body' => "Hello,\n\nYour order #{entry_id} ({form_title}) is on its way.\n\nTracking number: {tracking_number}\n{tracking_link}\n\nThank you,\n{site_name}",
+      ],
     ];
   }
 
@@ -133,6 +140,7 @@ final class FormSettings {
     $campaign = is_array($in['campaign'] ?? NULL) ? $in['campaign'] : [];
     $sheets = is_array($in['sheets'] ?? NULL) ? $in['sheets'] : [];
     $sheet = is_array($in['sheet'] ?? NULL) ? $in['sheet'] : [];
+    $orders = is_array($in['orders'] ?? NULL) ? $in['orders'] : [];
     $token = is_string($sheet['token'] ?? NULL) && preg_match('/^[a-f0-9]{32}$/', $sheet['token']) ? $sheet['token'] : '';
     $hash = is_string($sheet['password_hash'] ?? NULL) && str_starts_with($sheet['password_hash'], '$') ? substr($sheet['password_hash'], 0, 255) : '';
     $fromEmail = strtolower(self::line($in['from_email'] ?? ''));
@@ -208,6 +216,11 @@ final class FormSettings {
         'editable' => array_key_exists('editable', $sheet) ? !empty($sheet['editable']) : $d['sheet']['editable'],
         'token' => $token,
         'password_hash' => $hash,
+      ],
+      'orders' => [
+        'shipped_email' => array_key_exists('shipped_email', $orders) ? !empty($orders['shipped_email']) : $d['orders']['shipped_email'],
+        'shipped_subject' => self::line($orders['shipped_subject'] ?? '') ?: $d['orders']['shipped_subject'],
+        'shipped_body' => trim((string) ($orders['shipped_body'] ?? '')) !== '' ? (string) $orders['shipped_body'] : $d['orders']['shipped_body'],
       ],
     ];
   }

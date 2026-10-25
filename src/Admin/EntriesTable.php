@@ -58,6 +58,9 @@ final class EntriesTable extends \WP_List_Table {
       $columns['amount'] = __('Amount', 'embed-forms');
     }
     $columns['status'] = __('Status', 'embed-forms');
+    if ($this->store()) {
+      $columns['order'] = __('Order', 'embed-forms');
+    }
     $columns['created_at'] = __('Date', 'embed-forms');
     return $columns;
   }
@@ -77,6 +80,15 @@ final class EntriesTable extends \WP_List_Table {
     return ['spam' => __('Mark as spam', 'embed-forms'), 'trash' => __('Move to Trash', 'embed-forms')];
   }
 
+  private function store(): bool {
+    return \EmbedForms\Orders\Status::isStore($this->form['schema']);
+  }
+
+  public function currentOrder(): string {
+    $order = isset($_GET['order_status']) ? sanitize_key((string) $_GET['order_status']) : '';
+    return $this->store() && ($order === 'open' || $order === 'new' || ($order !== '' && array_key_exists($order, \EmbedForms\Orders\Status::ORDER))) ? $order : '';
+  }
+
   public function currentStatus(): string {
     $status = isset($_GET['status']) ? sanitize_key((string) $_GET['status']) : '';
     return in_array($status, Entries::STATUSES, TRUE) ? $status : '';
@@ -86,6 +98,7 @@ final class EntriesTable extends \WP_List_Table {
     return [
       'form_id' => $this->form['id'],
       'status' => $this->currentStatus(),
+      'order_status' => $this->currentOrder(),
       'search' => isset($_GET['s']) ? sanitize_text_field(wp_unslash((string) $_GET['s'])) : '',
       'from' => isset($_GET['from']) ? sanitize_text_field((string) $_GET['from']) : '',
       'to' => isset($_GET['to']) ? sanitize_text_field((string) $_GET['to']) : '',
@@ -141,6 +154,12 @@ final class EntriesTable extends \WP_List_Table {
     return sprintf('<span class="ef-status ef-status-%1$s">%2$s</span>', esc_attr($entry['status']), esc_html(self::statusLabel($entry['status'])));
   }
 
+  public function column_order(array $entry): string {
+    $key = (string) ($entry['order_status'] ?? '');
+    $text = esc_html(\EmbedForms\Orders\Status::orderLabel($key));
+    return $entry['tracking'] !== '' ? $text . '<br><small>' . esc_html($entry['tracking']) . '</small>' : $text;
+  }
+
   public function column_created_at(array $entry): string {
     return esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), strtotime($entry['created_at'] . ' UTC')));
   }
@@ -169,6 +188,16 @@ final class EntriesTable extends \WP_List_Table {
       <input type="date" id="ef-from" name="from" value="<?php echo esc_attr($f['from']); ?>">
       <label class="screen-reader-text" for="ef-to"><?php esc_html_e('To', 'embed-forms'); ?></label>
       <input type="date" id="ef-to" name="to" value="<?php echo esc_attr($f['to']); ?>">
+      <?php if ($this->store()) : ?>
+        <label class="screen-reader-text" for="ef-order-filter"><?php esc_html_e('Order status', 'embed-forms'); ?></label>
+        <select id="ef-order-filter" name="order_status">
+          <option value=""><?php esc_html_e('All orders', 'embed-forms'); ?></option>
+          <option value="open" <?php selected($f['order_status'], 'open'); ?>><?php esc_html_e('Open (new and ready)', 'embed-forms'); ?></option>
+          <?php foreach (\EmbedForms\Orders\Status::ORDER as $key => $label) : ?>
+            <option value="<?php echo esc_attr($key === '' ? 'new' : $key); ?>" <?php selected($f['order_status'], $key === '' ? 'new' : $key); ?>><?php echo esc_html(\EmbedForms\Orders\Status::orderLabel($key)); ?></option>
+          <?php endforeach; ?>
+        </select>
+      <?php endif; ?>
       <?php submit_button(__('Filter', 'embed-forms'), '', 'filter_action', FALSE); ?>
       <a class="button" href="<?php echo esc_url(Menu::actionUrl('embed_forms_export', array_filter($f, static fn($v) => $v !== '' && $v !== 0))); ?>"><?php esc_html_e('Export CSV', 'embed-forms'); ?></a>
     </div>

@@ -9,7 +9,7 @@ namespace EmbedForms;
  */
 final class Plugin {
 
-  public const VERSION = '0.4.0-beta.13';
+  public const VERSION = '0.4.0-beta.14';
 
   public const CAPABILITY = 'manage_options';
 
@@ -48,6 +48,7 @@ final class Plugin {
     (new Campaign\Module())->register();
     (new Sheets\Module())->register();
     (new Sheet\Module())->register();
+    (new Orders\Module())->register();
     (new Render\PageTemplate())->register();
     if (is_admin()) {
       (new Admin\Menu())->register();
@@ -56,6 +57,7 @@ final class Plugin {
 
   public static function activate(): void {
     Db\Schema::install();
+    Orders\Access::ensureRole();
     (new Render\PublicPage())->rewrite();
     flush_rewrite_rules();
   }

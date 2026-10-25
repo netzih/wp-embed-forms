@@ -26,13 +26,29 @@ final class Mailer {
       self::send($to, MergeTags::replace($notification['subject'], $context, FALSE), MergeTags::replace(self::bodyHtml($notification['body']), $context, TRUE), $replyTo[0] ?? '', $settings);
     }
 
-    $auto = $settings['autoresponder'];
-    if (!empty($auto['enabled']) && $auto['to_field'] !== '') {
-      $email = (string) ($entry['data'][$auto['to_field']] ?? '');
-      if (is_email($email)) {
-        self::send([$email], MergeTags::replace($auto['subject'], $context, FALSE), MergeTags::replace(self::bodyHtml($auto['body']), $context, TRUE), '', $settings);
-      }
+    self::confirmation($form, $entry, $extra, $extraHtml);
+  }
+
+  /**
+   * The form's confirmation email to the payer, when the form sends one.
+   */
+  public static function confirmation(array $form, array $entry, array $extra = [], array $extraHtml = []): bool {
+    $auto = $form['settings']['autoresponder'];
+    if (empty($auto['enabled']) || $auto['to_field'] === '') {
+      return FALSE;
     }
+    $email = (string) ($entry['data'][$auto['to_field']] ?? '');
+    return is_email($email) && self::message($form, $entry, [$email], $auto['subject'], $auto['body'], $extra, $extraHtml);
+  }
+
+  /**
+   * One email about an entry, from a subject and body with merge tags.
+   *
+   * @param string[] $to
+   */
+  public static function message(array $form, array $entry, array $to, string $subject, string $body, array $extra = [], array $extraHtml = []): bool {
+    $context = self::context($form, $entry, $extra, $extraHtml);
+    return self::send($to, MergeTags::replace($subject, $context, FALSE), MergeTags::replace(self::bodyHtml($body), $context, TRUE), '', $form['settings']);
   }
 
   public static function context(array $form, array $entry, array $extra = [], array $extraHtml = []): array {

@@ -8,11 +8,16 @@ namespace EmbedForms\Db;
  */
 final class Notes {
 
-  public static function add(int $entryId, string $content, ?int $subscriptionId = NULL): void {
+  /**
+   * @param string $kind
+   *   'note' for a note a person wrote; '' for what the plugin records.
+   */
+  public static function add(int $entryId, string $content, ?int $subscriptionId = NULL, string $kind = ''): void {
     Db::wpdb()->insert(Db::table('notes'), [
       'entry_id' => $entryId,
       'subscription_id' => $subscriptionId,
       'user_id' => function_exists('get_current_user_id') ? get_current_user_id() : 0,
+      'kind' => $kind,
       'content' => $content,
       'created_at' => Db::now(),
     ]);

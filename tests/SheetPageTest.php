@@ -35,7 +35,15 @@ final class SheetPageTest extends TestCase {
     $edit = array_column($columns, 'edit', 'label');
     self::assertNull($edit['Entry']);
     self::assertNull($edit['Amount']);
-    self::assertNull($edit['Status']);
+    self::assertNull($edit['Payment']);
+    // A store form shows the order; only the manager page changes it.
+    $store = array_column(Grid::columns(FormSchema::inputs($this->schema()), ['store' => TRUE]), 'edit', 'key');
+    self::assertNull($store['order']);
+    self::assertArrayNotHasKey('tracking', $store);
+    $manager = array_column(Grid::columns(FormSchema::inputs($this->schema()), ['store' => TRUE, 'manager' => TRUE]), 'edit', 'key');
+    self::assertSame('select', $manager['order']);
+    self::assertSame('text', $manager['tracking']);
+    self::assertNull($manager['balance']);
     self::assertSame('text', $edit['Name (first)']);
     self::assertSame('email', $edit['Email (2)']);
     self::assertSame('select', $edit['Delivery']);
