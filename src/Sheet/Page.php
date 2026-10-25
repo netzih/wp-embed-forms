@@ -26,6 +26,11 @@ final class Page {
   private const MAX_ROWS = 3000;
 
   /**
+   * Entries one bulk change may touch.
+   */
+  public const MAX_BULK = 300;
+
+  /**
    * Preset accent colours (form.css), for the page's buttons.
    */
   private const ACCENTS = ['blue' => '#1666aa', 'teal' => '#007475', 'green' => '#21763c', 'violet' => '#6453a7', 'rose' => '#a33949', 'ink' => '#2b2d31'];
@@ -133,6 +138,11 @@ final class Page {
         /* translators: %d: entry number */
         $content = '<button type="button" class="sh-open" aria-label="' . esc_attr(sprintf(__('Open order %d', 'embed-forms'), (int) $entry['id'])) . '">' . $content . '</button>';
       }
+      if ($editable && $column['key'] === 'id') {
+        // Ticked for a bulk change.
+        /* translators: %d: entry number */
+        $content = '<input type="checkbox" class="sh-pick" aria-label="' . esc_attr(sprintf(__('Select entry %d', 'embed-forms'), (int) $entry['id'])) . '"> ' . $content;
+      }
       $out .= sprintf(
         '<td class="%1$s" data-col="%2$d"%3$s%4$s title="%5$s">%6$s</td>',
         esc_attr(implode(' ', $classes)),
@@ -150,11 +160,12 @@ final class Page {
     $out = '<div class="sh-scroll" tabindex="0" aria-label="' . esc_attr__('Entries', 'embed-forms') . '"><table class="sh-grid' . ($editable ? ' is-editable' : '') . '"><thead><tr>';
     foreach ($columns as $i => $column) {
       $out .= sprintf(
-        '<th scope="col" class="%1$s" aria-sort="none"><button type="button" class="sh-sort" data-col="%2$d"%3$s>%4$s</button></th>',
+        '<th scope="col" class="%1$s" aria-sort="none">%5$s<button type="button" class="sh-sort" data-col="%2$d"%3$s>%4$s</button></th>',
         $editable && $column['edit'] !== NULL ? '' : 'is-fixed',
         (int) $i,
         $column['numeric'] ? ' data-numeric="1"' : '',
-        esc_html($column['label'])
+        esc_html($column['label']),
+        $editable && $column['key'] === 'id' ? '<input type="checkbox" class="sh-pick-all" aria-label="' . esc_attr__('Select all shown', 'embed-forms') . '">' : ''
       );
     }
     $out .= '</tr></thead><tbody>';
@@ -162,6 +173,107 @@ final class Page {
       $out .= self::tr($columns, $row, $editable, $openable);
     }
     return $out . '</tbody></table></div><p class="sh-none" hidden>' . esc_html__('No entries match.', 'embed-forms') . '</p>';
+  }
+
+  /**
+   * Change one answer of an entry (no check of what the cell showed: the
+   * caller does that, or the person confirmed a bulk change).
+   *
+   * @param string $note
+   *   The history line: 1 column, 2 before, 3 after.
+   *
+   * @return array{ok: bool, changed: bool, message: string, cell: array}
+   */
+  public static function applyAnswer(array $form, array $entry, array $columns, int $index, string $value, string $note): array {
+    $column = $columns[$index];
+    $current = self::row($form, $columns, $entry)['cells'][$index];
+    $result = Grid::change(\EmbedForms\Db\Forms::schemaAt($form, $entry['form_version']), $entry['data'], $column, mb_substr($value, 0, 5000));
+    if (!$result['ok']) {
+      return ['ok' => FALSE, 'changed' => FALSE, 'message' => $result['message'], 'cell' => $current];
+    }
+    $entry['data'] = $result['values'];
+    $after = self::row($form, $columns, $entry)['cells'][$index];
+    if ($after['text'] === $current['text']) {
+      return ['ok' => TRUE, 'changed' => FALSE, 'message' => '', 'cell' => $after];
+    }
+    Entries::update((int) $entry['id'], [
+      'data' => $result['values'],
+      'payer_email' => \EmbedForms\Submit\SubmissionHandler::payerEmail($form, $result['values']) ?: $entry['payer_email'],
+    ]);
+    \EmbedForms\Db\Notes::add((int) $entry['id'], sprintf($note, $column['label'], $current['text'], $after['text']));
+    /** This hook is documented in src/Admin/EntryEditor.php */
+    do_action('embed_forms_entry_edited', Entries::find((int) $entry['id']), $form, [$column['label']]);
+    do_action('embed_forms_entry_changed', (int) $form['id']);
+    return ['ok' => TRUE, 'changed' => TRUE, 'message' => '', 'cell' => $after];
+  }
+
+  /**
+   * A bulk change: $apply runs on each chosen entry of the form (not spam,
+   * trash or failed) and answers like applyAnswer(). The answer holds each
+   * entry's row as it now is and what was skipped and why.
+   *
+   * @param array $ids
+   *   Entry ids, at most MAX_BULK.
+   */
+  public static function bulk(array $form, array $columns, array $ids, callable $apply, bool $openable = FALSE): array {
+    $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', $ids)))), 0, self::MAX_BULK);
+    if (!$ids) {
+      return ['ok' => FALSE, 'message' => __('Choose the entries to change first.', 'embed-forms')];
+    }
+    $changed = 0;
+    $same = 0;
+    $skipped = [];
+    $rows = [];
+    foreach ($ids as $id) {
+      $entry = Entries::find($id);
+      if (!$entry || (int) $entry['form_id'] !== (int) $form['id'] || !in_array($entry['status'], self::STATUSES, TRUE)) {
+        $skipped[] = sprintf('#%1$d: %2$s', $id, __('no longer here', 'embed-forms'));
+        continue;
+      }
+      $result = $apply($entry);
+      if (!$result['ok']) {
+        $skipped[] = sprintf('#%1$d: %2$s', $id, $result['message']);
+      }
+      elseif ($result['changed']) {
+        $changed++;
+      }
+      else {
+        $same++;
+      }
+      $rows[] = self::tr($columns, self::row($form, $columns, Entries::find($id)), TRUE, $openable);
+    }
+    $parts = [sprintf(_n('%s entry changed', '%s entries changed', $changed, 'embed-forms'), number_format_i18n($changed))];
+    if ($same) {
+      $parts[] = sprintf(_n('%s already had it', '%s already had it', $same, 'embed-forms'), number_format_i18n($same));
+    }
+    if ($skipped) {
+      $parts[] = sprintf(_n('%s skipped', '%s skipped', count($skipped), 'embed-forms'), number_format_i18n(count($skipped)));
+    }
+    return [
+      'ok' => !$skipped,
+      'message' => implode(', ', $parts) . '.' . ($skipped ? ' ' . implode('; ', array_slice($skipped, 0, 5)) . (count($skipped) > 5 ? '…' : '') : ''),
+      'rows' => $rows,
+      'changed' => $changed,
+      'skipped' => count($skipped),
+    ];
+  }
+
+  /**
+   * The bulk change bar, shown by sheet.js once entries are ticked.
+   */
+  public static function bulkBar(): string {
+    return '<div class="sh-bulk" hidden role="region" aria-label="' . esc_attr__('Change the selected entries', 'embed-forms') . '">'
+      . '<strong class="sh-bulk-count"></strong>'
+      . '<label><span>' . esc_html__('Set', 'embed-forms') . '</span><select class="sh-bulk-column"></select></label>'
+      . '<label><span>' . esc_html__('to', 'embed-forms') . '</span><span class="sh-bulk-value"></span></label>'
+      . '<label class="sh-bulk-notify" hidden><input type="checkbox" checked> ' . esc_html__('Email each customer that it shipped', 'embed-forms') . '</label>'
+      . '<button type="button" class="sh-button sh-primary sh-bulk-apply">' . esc_html__('Review change', 'embed-forms') . '</button>'
+      . '<button type="button" class="sh-button sh-quiet sh-bulk-clear">' . esc_html__('Clear selection', 'embed-forms') . '</button>'
+      . '</div>'
+      . '<dialog class="sh-dialog" aria-labelledby="sh-dialog-title"><form method="dialog">'
+      . '<h2 id="sh-dialog-title"></h2><p class="sh-dialog-text"></p><p class="sh-dialog-list"></p>'
+      . '<div class="sh-dialog-buttons"><button value="cancel" class="sh-button">' . esc_html__('Go back', 'embed-forms') . '</button>'
+      . '<button value="ok" class="sh-button sh-primary sh-dialog-ok"></button></div></form></dialog>';
   }
 
   /**
@@ -214,10 +326,23 @@ final class Page {
         'showing' => __('%1$s of %2$s', 'embed-forms'),
         'entries' => __('entries', 'embed-forms'),
         'orders' => __('orders', 'embed-forms'),
+        'entry' => __('entry', 'embed-forms'),
+        'order' => __('order', 'embed-forms'),
         'received' => __('received', 'embed-forms'),
         'due' => __('to collect', 'embed-forms'),
         'credit' => __('to refund', 'embed-forms'),
         'cancelled' => __('cancelled', 'embed-forms'),
+        /* translators: %s: number of entries */
+        'selected' => __('%s selected', 'embed-forms'),
+        /* translators: 1: column, 2: new value, 3: number of entries */
+        'confirmTitle' => __('Set %1$s to "%2$s" on %3$s?', 'embed-forms'),
+        'confirmText' => __('Each entry\'s history records the old and new value. Entries where this question does not apply are skipped.', 'embed-forms'),
+        'confirmEmail' => __('Each customer with an email address gets the shipped email.', 'embed-forms'),
+        /* translators: %s: number of entries */
+        'confirmButton' => __('Change %s', 'embed-forms'),
+        'blank' => __('(empty)', 'embed-forms'),
+        /* translators: %s: number of entries left out of the list */
+        'more' => __('and %s more', 'embed-forms'),
       ],
     ];
   }

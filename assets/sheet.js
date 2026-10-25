@@ -33,6 +33,13 @@
     return '$' + (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function noun(n) {
+    if (config.store) {
+      return n === 1 ? strings.order : strings.orders;
+    }
+    return n === 1 ? strings.entry : strings.entries;
+  }
+
   function escapeHtml(text) {
     var div = document.createElement('div');
     div.textContent = text;
@@ -78,6 +85,13 @@
       var match = matches(row, query);
       row.hidden = !match;
       if (!match) {
+        // Hidden rows are never part of a bulk change.
+        var pick = row.querySelector('.sh-pick');
+        if (pick) {
+          pick.checked = false;
+        }
+      }
+      if (!match) {
         return;
       }
       shown++;
@@ -101,8 +115,7 @@
       return;
     }
     var parts = [];
-    var noun = config.store ? strings.orders : strings.entries;
-    parts.push('<strong>' + (shown === rows.length ? shown : (strings.showing || '%1$s of %2$s').replace('%1$s', shown).replace('%2$s', rows.length)) + '</strong> ' + noun);
+    parts.push('<strong>' + (shown === rows.length ? shown : (strings.showing || '%1$s of %2$s').replace('%1$s', shown).replace('%2$s', rows.length)) + '</strong> ' + noun(rows.length));
     (config.products || []).forEach(function (product) {
       if (counts[product.id]) {
         parts.push('<strong>' + counts[product.id] + '</strong> ' + escapeHtml(product.label));
@@ -121,6 +134,9 @@
       parts.push(cancelled + ' ' + strings.cancelled);
     }
     totals.innerHTML = parts.map(function (p) { return '<span>' + p + '</span>'; }).join('');
+    if (api.onRefresh) {
+      api.onRefresh();
+    }
   }
   api.refresh = refresh;
 
@@ -190,6 +206,11 @@
     }
     var old = tbody.querySelector('tr[data-entry="' + fresh.getAttribute('data-entry') + '"]');
     if (old) {
+      var wasPicked = old.querySelector('.sh-pick');
+      var nowPicked = fresh.querySelector('.sh-pick');
+      if (wasPicked && nowPicked) {
+        nowPicked.checked = wasPicked.checked;
+      }
       tbody.replaceChild(fresh, old);
     }
     else {
@@ -354,6 +375,164 @@
       cell.textContent = before;
       say(strings.offline || 'Not saved.', true);
     });
+  }
+
+  // Bulk change: tick entries, choose a column and a value, confirm.
+  var bar = document.querySelector('.sh-bulk');
+  var dialog = document.querySelector('.sh-dialog');
+  if (bar && dialog) {
+    var count = bar.querySelector('.sh-bulk-count');
+    var columnSelect = bar.querySelector('.sh-bulk-column');
+    var valueBox = bar.querySelector('.sh-bulk-value');
+    var notify = bar.querySelector('.sh-bulk-notify');
+    var pickAll = table.querySelector('.sh-pick-all');
+    var valueField = null;
+
+    config.columns.forEach(function (column, index) {
+      if (column.edit && column.key !== 'tracking') {
+        var option = document.createElement('option');
+        option.value = index;
+        option.textContent = column.label;
+        columnSelect.appendChild(option);
+      }
+    });
+
+    var picked = function () {
+      return Array.prototype.slice.call(tbody.rows).filter(function (row) {
+        var box = row.querySelector('.sh-pick');
+        return box && box.checked && !row.hidden;
+      });
+    };
+
+    var bulkColumn = function () {
+      return config.columns[parseInt(columnSelect.value, 10)] || {};
+    };
+
+    var buildValue = function () {
+      var column = bulkColumn();
+      valueBox.textContent = '';
+      if (column.edit === 'select') {
+        valueField = document.createElement('select');
+        if (column.key !== 'order') {
+          var blank = document.createElement('option');
+          blank.value = '';
+          blank.textContent = strings.blank || '(empty)';
+          valueField.appendChild(blank);
+        }
+        (column.options || []).forEach(function (option) {
+          var el = document.createElement('option');
+          el.value = option[0];
+          el.textContent = option[1];
+          valueField.appendChild(el);
+        });
+      } else {
+        valueField = document.createElement('input');
+        valueField.type = ['email', 'number', 'date'].indexOf(column.edit) !== -1 ? column.edit : 'text';
+      }
+      valueField.setAttribute('aria-label', column.label || '');
+      valueField.addEventListener('change', update);
+      valueBox.appendChild(valueField);
+      update();
+    };
+
+    var update = function () {
+      var rows = picked();
+      bar.hidden = rows.length === 0;
+      count.textContent = (strings.selected || '%s selected').replace('%s', rows.length);
+      if (pickAll) {
+        var shown = Array.prototype.slice.call(tbody.rows).filter(function (row) { return !row.hidden; }).length;
+        pickAll.checked = rows.length > 0 && rows.length === shown;
+        pickAll.indeterminate = rows.length > 0 && rows.length < shown;
+      }
+      notify.hidden = !(config.shippedEmail && bulkColumn().key === 'order' && valueField && valueField.value === 'shipped');
+    };
+    api.onRefresh = update;
+
+    table.addEventListener('change', function (event) {
+      if (event.target.classList.contains('sh-pick-all')) {
+        Array.prototype.slice.call(tbody.rows).forEach(function (row) {
+          var box = row.querySelector('.sh-pick');
+          if (box && !row.hidden) {
+            box.checked = event.target.checked;
+          }
+        });
+      }
+      if (event.target.classList.contains('sh-pick') || event.target.classList.contains('sh-pick-all')) {
+        update();
+      }
+    });
+    columnSelect.addEventListener('change', buildValue);
+    bar.querySelector('.sh-bulk-clear').addEventListener('click', function () {
+      tbody.querySelectorAll('.sh-pick').forEach(function (box) { box.checked = false; });
+      update();
+    });
+
+    bar.querySelector('.sh-bulk-apply').addEventListener('click', function () {
+      var rows = picked();
+      if (!rows.length || !valueField) {
+        return;
+      }
+      var column = bulkColumn();
+      var shownValue = valueField.tagName === 'SELECT' ? valueField.options[valueField.selectedIndex].textContent : valueField.value;
+      if (shownValue === '' || valueField.value === '') {
+        shownValue = valueField.tagName === 'SELECT' && column.key === 'order' ? shownValue : (strings.blank || '(empty)');
+      }
+      var amount = rows.length + ' ' + noun(rows.length);
+      var ids = rows.map(function (row) { return '#' + row.getAttribute('data-entry'); });
+      var sendEmail = !notify.hidden && notify.querySelector('input').checked;
+      dialog.querySelector('#sh-dialog-title').textContent = (strings.confirmTitle || '%1$s %2$s %3$s').replace('%1$s', column.label).replace('%2$s', shownValue).replace('%3$s', amount);
+      dialog.querySelector('.sh-dialog-text').textContent = strings.confirmText + (sendEmail ? ' ' + strings.confirmEmail : '');
+      dialog.querySelector('.sh-dialog-list').textContent = ids.slice(0, 12).join(', ') + (ids.length > 12 ? ' ' + (strings.more || 'and %s more').replace('%s', ids.length - 12) : '');
+      dialog.querySelector('.sh-dialog-ok').textContent = (strings.confirmButton || 'Change %s').replace('%s', amount);
+      dialog.returnValue = '';
+      dialog.showModal();
+      dialog.addEventListener('close', function onClose() {
+        dialog.removeEventListener('close', onClose);
+        if (dialog.returnValue !== 'ok') {
+          return;
+        }
+        var body = new FormData();
+        body.append('ef_action', 'bulk');
+        body.append('column', column.key);
+        body.append('value', valueField.value);
+        if (sendEmail) {
+          body.append('notify', '1');
+        }
+        rows.forEach(function (row) { body.append('entries[]', row.getAttribute('data-entry')); });
+        var apply = bar.querySelector('.sh-bulk-apply');
+        apply.disabled = true;
+        apply.classList.add('is-busy');
+        fetch(config.url, {
+          method: 'POST',
+          body: body,
+          credentials: 'same-origin',
+          headers: { 'X-EF-Sheet': config.csrf }
+        }).then(function (response) {
+          return response.json().catch(function () { return { ok: false }; });
+        }).then(function (answer) {
+          apply.disabled = false;
+          apply.classList.remove('is-busy');
+          (answer.rows || []).forEach(function (html) {
+            var fresh = api.replaceRow(html);
+            if (fresh) {
+              fresh.querySelector('.sh-pick').checked = false;
+              var cell = fresh.querySelector('td[data-col="' + columnSelect.value + '"]');
+              if (cell) {
+                cell.classList.add('is-saved');
+              }
+            }
+          });
+          update();
+          say(answer.message || strings.offline, !answer.ok);
+        }).catch(function () {
+          apply.disabled = false;
+          apply.classList.remove('is-busy');
+          say(strings.offline || 'Not saved.', true);
+        });
+      });
+    });
+
+    buildValue();
   }
 
   table.addEventListener('click', function (event) {

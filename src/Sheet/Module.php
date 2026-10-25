@@ -73,7 +73,7 @@ final class Module {
       exit;
     }
     if (!self::signedIn($form)) {
-      if ($action === 'save') {
+      if ($action === 'save' || $action === 'bulk') {
         wp_send_json(['ok' => FALSE, 'message' => __('You were signed out. Reload the page and enter the password again.', 'embed-forms')], 401);
       }
       $this->gate($form);
@@ -81,6 +81,10 @@ final class Module {
     }
     if ($action === 'save' && $post) {
       $this->save($form);
+      exit;
+    }
+    if ($action === 'bulk' && $post) {
+      $this->bulk($form);
       exit;
     }
     if ($action === 'csv' || $action === 'xlsx') {
@@ -217,6 +221,7 @@ final class Module {
         <p class="sh-totals" aria-live="polite"></p>
         <?php echo Page::filters($form, $rows); // Escaped inside. ?>
       </div>
+      <?php echo $editable ? Page::bulkBar() : ''; // Escaped inside. ?>
       <?php echo Page::table($columns, $rows, $editable); // Escaped inside. ?>
       <div class="sh-toast" role="status" aria-live="polite" hidden></div>
     <?php endif; ?>
@@ -266,26 +271,38 @@ final class Module {
     if ($current['text'] !== (string) ($post['before'] ?? '')) {
       wp_send_json(['ok' => FALSE, 'conflict' => TRUE, 'message' => __('Someone else changed this cell a moment ago; it now shows their answer.', 'embed-forms')] + $current, 409);
     }
-    $value = mb_substr((string) ($post['value'] ?? ''), 0, 5000);
-    $result = Grid::change(Forms::schemaAt($form, $entry['form_version']), $entry['data'], $column, $value);
+    $result = Page::applyAnswer($form, $entry, $columns, $index, (string) ($post['value'] ?? ''), $note);
     if (!$result['ok']) {
       wp_send_json(['ok' => FALSE, 'message' => $result['message']] + $current, 422);
     }
-    $entry['data'] = $result['values'];
-    $after = Page::row($form, $columns, $entry)['cells'][$index];
-    if ($after['text'] !== $current['text']) {
-      Entries::update((int) $entry['id'], [
-        'data' => $result['values'],
-        'payer_email' => \EmbedForms\Submit\SubmissionHandler::payerEmail($form, $result['values']) ?: $entry['payer_email'],
-      ]);
-      Notes::add((int) $entry['id'], sprintf($note, $column['label'], $current['text'], $after['text']));
-      /** This hook is documented in src/Admin/EntryEditor.php */
-      do_action('embed_forms_entry_edited', Entries::find((int) $entry['id']), $form, [$column['label']]);
-      do_action('embed_forms_entry_changed', (int) $form['id']);
-    }
     $fresh = Entries::find((int) $entry['id']);
-    $editable = TRUE;
-    wp_send_json(['ok' => TRUE, 'row' => Page::tr($columns, Page::row($form, $columns, $fresh), $editable, $openable)] + $after);
+    wp_send_json(['ok' => TRUE, 'row' => Page::tr($columns, Page::row($form, $columns, $fresh), TRUE, $openable)] + $result['cell']);
+  }
+
+  /**
+   * One column set to one value on the chosen entries.
+   */
+  private function bulk(array $form): void {
+    if (!hash_equals(self::csrf($form), (string) ($_SERVER['HTTP_X_EF_SHEET'] ?? ''))) {
+      wp_send_json(['ok' => FALSE, 'message' => __('Reload the page and try again.', 'embed-forms')], 403);
+    }
+    if (empty($form['settings']['sheet']['editable'])) {
+      wp_send_json(['ok' => FALSE, 'message' => __('This sheet is view only.', 'embed-forms')], 403);
+    }
+    $post = wp_unslash($_POST);
+    $columns = Page::columns($form);
+    $index = array_search((string) ($post['column'] ?? ''), array_column($columns, 'key'), TRUE);
+    if ($index === FALSE || $columns[$index]['edit'] === NULL || $columns[$index]['field'] === NULL) {
+      wp_send_json(['ok' => FALSE, 'message' => __('This column cannot be changed here.', 'embed-forms')], 400);
+    }
+    $value = (string) ($post['value'] ?? '');
+    $note = __('Changed on the shared entries page (bulk): %1$s from "%2$s" to "%3$s".', 'embed-forms');
+    wp_send_json(Page::bulk($form, $columns, (array) ($post['entries'] ?? []), static function (array $entry) use ($form, $columns, $index, $value, $note): array {
+      if (!RateLimit::hit('sheet_save_' . $form['id'], RateLimit::clientIp(), 600, HOUR_IN_SECONDS)) {
+        return ['ok' => FALSE, 'changed' => FALSE, 'message' => __('Too many changes at once. Wait a few minutes.', 'embed-forms')];
+      }
+      return Page::applyAnswer($form, $entry, $columns, $index, $value, $note);
+    }));
   }
 
   private function download(array $form, string $kind): void {
