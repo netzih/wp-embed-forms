@@ -70,8 +70,9 @@ final class Entries {
 
   /**
    * @param array $args
-   *   form_id, status ('' = all but spam and trash), search, from, to
-   *   (Y-m-d), orderby, order, limit, offset.
+   *   form_id, status ('' = all but spam and trash), order_status (a key
+   *   of Orders\Status::ORDER, or 'open' for new and ready), search, from,
+   *   to (Y-m-d), orderby, order, limit, offset.
    *
    * @return array{rows: array[], total: int}
    */
@@ -144,6 +145,17 @@ final class Entries {
     }
     else {
       $where[] = "status NOT IN ('spam', 'trash')";
+    }
+    $order = (string) ($args['order_status'] ?? '');
+    if ($order === 'open') {
+      $where[] = "order_status IN ('', 'ready')";
+    }
+    elseif ($order === 'new') {
+      $where[] = "order_status = ''";
+    }
+    elseif ($order !== '' && array_key_exists($order, \EmbedForms\Orders\Status::ORDER)) {
+      $where[] = 'order_status = %s';
+      $params[] = $order;
     }
     if (!empty($args['search'])) {
       $like = '%' . $db->esc_like((string) $args['search']) . '%';

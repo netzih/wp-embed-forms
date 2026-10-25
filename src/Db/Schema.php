@@ -9,10 +9,12 @@ namespace EmbedForms\Db;
  *
  * 3: gateway and account on payments and subscriptions (empty on older rows
  * means USAePay's default account), customer_reference for Stripe.
+ * 4: order_status and tracking on entries (store forms), kind on notes
+ * ('note' for one written by a person).
  */
 final class Schema {
 
-  public const VERSION = '3';
+  public const VERSION = '4';
 
   private const OPTION = 'embed_forms_db_version';
 
@@ -73,6 +75,8 @@ final class Schema {
   user_agent varchar(255) NOT NULL DEFAULT '',
   source_url text NULL,
   submission_key varchar(64) NOT NULL DEFAULT '',
+  order_status varchar(20) NOT NULL DEFAULT '',
+  tracking varchar(190) NOT NULL DEFAULT '',
   is_read tinyint(1) NOT NULL DEFAULT 0,
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
@@ -80,7 +84,8 @@ final class Schema {
   KEY form_status (form_id,status),
   KEY created_at (created_at),
   KEY payer_email (payer_email),
-  KEY submission (form_id,submission_key)
+  KEY submission (form_id,submission_key),
+  KEY form_order (form_id,order_status)
 ) {$charset};";
     $sql[] = "CREATE TABLE {$payments} (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -148,6 +153,7 @@ final class Schema {
   entry_id bigint(20) unsigned NOT NULL,
   subscription_id bigint(20) unsigned DEFAULT NULL,
   user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  kind varchar(20) NOT NULL DEFAULT '',
   content text NOT NULL,
   created_at datetime NOT NULL,
   PRIMARY KEY  (id),

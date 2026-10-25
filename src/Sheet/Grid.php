@@ -38,18 +38,37 @@ final class Grid {
   /**
    * @param array<string, array> $inputs
    *   Input fields keyed by id (FormSchema::inputs()).
+   * @param array $options
+   *   'store' => TRUE adds the Order column (store forms); 'manager' => TRUE
+   *   (the manager page) makes Order and Tracking changeable and adds
+   *   Tracking and Balance.
    *
    * @return array<int, array{key: string, label: string, field: ?string, part: ?string, edit: ?string, options: array, numeric: bool}>
    */
-  public static function columns(array $inputs): array {
+  public static function columns(array $inputs, array $options = []): array {
     $column = static fn(string $key, string $label, ?string $field = NULL, ?string $part = NULL, ?string $edit = NULL, array $options = [], bool $numeric = FALSE) => compact('key', 'label', 'field', 'part', 'edit', 'options', 'numeric');
+    $store = !empty($options['store']);
+    $manager = !empty($options['manager']);
     $columns = [
       $column('id', 'Entry', NULL, NULL, NULL, [], TRUE),
       $column('date', 'Date'),
-      $column('status', 'Status'),
-      $column('email', 'Email'),
-      $column('amount', 'Amount', NULL, NULL, NULL, [], TRUE),
+      $column('status', 'Payment'),
     ];
+    if ($store) {
+      $orders = [];
+      foreach (\EmbedForms\Orders\Status::ORDER as $key => $label) {
+        $orders[] = [(string) $key, \EmbedForms\Orders\Status::orderLabel((string) $key)];
+      }
+      $columns[] = $column('order', 'Order', NULL, NULL, $manager ? 'select' : NULL, $orders);
+      if ($manager) {
+        $columns[] = $column('tracking', 'Tracking', NULL, NULL, 'text');
+      }
+    }
+    $columns[] = $column('email', 'Email');
+    $columns[] = $column('amount', $store ? 'Total' : 'Amount', NULL, NULL, NULL, [], TRUE);
+    if ($manager) {
+      $columns[] = $column('balance', 'Balance', NULL, NULL, NULL, [], TRUE);
+    }
     foreach ($inputs as $id => $field) {
       $label = $field['label'] !== '' ? $field['label'] : $id;
       $type = $field['type'];
@@ -86,10 +105,12 @@ final class Grid {
    *
    * @param ?array $payment
    *   The entry's charge, if any.
+   * @param array $extra
+   *   'payment': the payment status label; 'balance': the balance text.
    *
    * @return array{text: string, value: string}
    */
-  public static function cell(array $column, array $entry, array $inputs, string $date, ?array $payment): array {
+  public static function cell(array $column, array $entry, array $inputs, string $date, ?array $payment, array $extra = []): array {
     switch ($column['key']) {
       case 'id':
         $text = (string) $entry['id'];
@@ -100,7 +121,19 @@ final class Grid {
         break;
 
       case 'status':
-        $text = (string) $entry['status'];
+        $text = (string) ($extra['payment'] ?? $entry['status']);
+        break;
+
+      case 'order':
+        $key = (string) ($entry['order_status'] ?? '');
+        return ['text' => \EmbedForms\Orders\Status::orderLabel($key), 'value' => $key];
+
+      case 'tracking':
+        $text = (string) ($entry['tracking'] ?? '');
+        break;
+
+      case 'balance':
+        $text = (string) ($extra['balance'] ?? '');
         break;
 
       case 'email':
