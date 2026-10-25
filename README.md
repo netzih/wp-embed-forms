@@ -157,6 +157,11 @@ A form's entries as a sheet for people without a WordPress login (Settings
   transaction and card cannot be changed. If someone else changed the cell
   first, the change is refused and the cell shows theirs. Changes need a
   per-session token, so another site cannot make them.
+- **Bulk changes:** tick entries (the box in the heading ticks every
+  entry shown), choose a column and a value, and confirm in a dialog that
+  names the entries. Each entry is checked like a single change; entries
+  where the value does not fit (a question hidden for them, an invalid
+  email) are skipped and listed. Up to 300 at a time.
 - **Shows** submitted, paid and refunded entries, newest first (up to
   3,000), with find, filters by payment and order status, sorting by any
   column, and totals for what is shown (entries, copies of each product,
@@ -191,6 +196,9 @@ WordPress:
 - **Sheet:** like the shared entries page (find, filters, sorting,
   totals, downloads) with Order and Tracking changeable in place and a
   Balance column. The entry number opens the entry's panel.
+- **Bulk changes:** as on the shared entries page, for answers and the
+  order status (optionally sending each customer the shipped email).
+  Tracking numbers, quantities and money are changed one entry at a time.
 - **Panel:** order status and tracking, with an optional "shipped" email
   (subject and message per form; `{tracking_number}`, `{tracking_link}`
   for UPS, USPS and FedEx numbers); quantities, with the total worked out

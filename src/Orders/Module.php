@@ -94,6 +94,9 @@ final class Module {
     if ($action === 'act' && $post) {
       $this->act($form);
     }
+    if ($action === 'bulk' && $post) {
+      $this->bulk($form);
+    }
     if ($action === 'panel') {
       $entry = $this->entry($form, (int) ($_GET['entry'] ?? 0));
       wp_send_json(['ok' => TRUE, 'panel' => $this->panel($form, $entry)]);
@@ -202,6 +205,7 @@ final class Module {
     <?php if (!$rows) : ?>
       <p class="sh-empty"><?php esc_html_e('No entries yet. They appear here as soon as someone submits the form, or add one by hand.', 'embed-forms'); ?></p>
     <?php endif; ?>
+    <?php echo Page::bulkBar(); // Escaped inside. ?>
     <?php echo Page::table($columns, $rows, TRUE, TRUE); // Escaped inside. ?>
     <div class="sh-backdrop" hidden></div>
     <aside class="sh-panel" hidden aria-modal="true" role="dialog" aria-labelledby="sh-panel-title" tabindex="-1"><div class="sh-panel-body"></div></aside>
@@ -215,6 +219,7 @@ final class Module {
       'loading' => __('Loading…', 'embed-forms'),
       'close' => __('Close', 'embed-forms'),
     ];
+    $config['shippedEmail'] = $store && !empty($form['settings']['orders']['shipped_email']);
     Page::shell($form['title'], $form, (string) ob_get_clean(), $config, ['assets/orders.js'], 'sh-manager');
   }
 
@@ -255,6 +260,36 @@ final class Module {
       $result['message'] .= ' ' . __('To email the customer, open the order.', 'embed-forms');
     }
     $this->respond($form, $entry, $result, FALSE);
+  }
+
+  /**
+   * One column set to one value on the chosen entries: an answer or the
+   * order status (tracking numbers and money are changed one at a time).
+   */
+  private function bulk(array $form): void {
+    $post = wp_unslash($_POST);
+    $columns = Page::columns($form, TRUE);
+    $key = (string) ($post['column'] ?? '');
+    $index = array_search($key, array_column($columns, 'key'), TRUE);
+    $value = (string) ($post['value'] ?? '');
+    if ($index === FALSE || $key === 'tracking' || $columns[$index]['edit'] === NULL || ($key !== 'order' && $columns[$index]['field'] === NULL)) {
+      wp_send_json(['ok' => FALSE, 'message' => __('This column cannot be changed in bulk.', 'embed-forms')], 400);
+    }
+    if ($key === 'order') {
+      $notify = !empty($post['notify']) && $value === 'shipped';
+      $apply = static function (array $entry) use ($form, $value, $notify): array {
+        if (($entry['order_status'] ?? '') === $value) {
+          return ['ok' => TRUE, 'changed' => FALSE, 'message' => ''];
+        }
+        $result = Service::setOrder($entry, $form, $value, NULL, $notify);
+        return ['ok' => $result['ok'], 'changed' => $result['ok'], 'message' => $result['message']];
+      };
+    }
+    else {
+      $note = sprintf(__('%s changed on the manager page (bulk):', 'embed-forms'), Service::who()) . ' %1$s from "%2$s" to "%3$s".';
+      $apply = static fn(array $entry): array => Page::applyAnswer($form, $entry, $columns, $index, $value, $note);
+    }
+    wp_send_json(Page::bulk($form, $columns, (array) ($post['entries'] ?? []), $apply, TRUE));
   }
 
   /**
