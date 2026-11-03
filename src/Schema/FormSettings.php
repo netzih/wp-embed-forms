@@ -117,9 +117,12 @@ final class FormSettings {
         // wp_hash_password() of the password.
         'password_hash' => '',
       ],
-      // The manager page (Orders\Module): the email sent when an
-      // order is marked shipped.
+      // The manager page (Orders\Module): the emails offered when an
+      // order is marked ready (off until turned on) or shipped.
       'orders' => [
+        'ready_email' => FALSE,
+        'ready_subject' => 'Your order is ready for pickup',
+        'ready_body' => "Hello,\n\nYour order #{entry_id} ({form_title}) is ready for pickup.\n\nThank you,\n{site_name}",
         'shipped_email' => TRUE,
         'shipped_subject' => 'Your order has shipped',
         'shipped_body' => "Hello,\n\nYour order #{entry_id} ({form_title}) is on its way.\n\nTracking number: {tracking_number}\n{tracking_link}\n\nThank you,\n{site_name}",
@@ -218,6 +221,9 @@ final class FormSettings {
         'password_hash' => $hash,
       ],
       'orders' => [
+        'ready_email' => !empty($orders['ready_email']),
+        'ready_subject' => self::line($orders['ready_subject'] ?? '') ?: $d['orders']['ready_subject'],
+        'ready_body' => trim((string) ($orders['ready_body'] ?? '')) !== '' ? (string) $orders['ready_body'] : $d['orders']['ready_body'],
         'shipped_email' => array_key_exists('shipped_email', $orders) ? !empty($orders['shipped_email']) : $d['orders']['shipped_email'],
         'shipped_subject' => self::line($orders['shipped_subject'] ?? '') ?: $d['orders']['shipped_subject'],
         'shipped_body' => trim((string) ($orders['shipped_body'] ?? '')) !== '' ? (string) $orders['shipped_body'] : $d['orders']['shipped_body'],

@@ -96,14 +96,16 @@
     load({ ef_action: 'panel', entry: id });
   }
 
-  // Show the "email that it shipped" box only when Shipped is chosen, and
-  // the payment details of a new order only when it was paid.
+  // Show (and send) an "email that it is ready / shipped" box only when that
+  // status is chosen, and the payment details of a new order only when it
+  // was paid.
   function wire() {
     body.querySelectorAll('.sh-order-select').forEach(function (select) {
       var form = select.form;
       var toggle = function () {
         form.querySelectorAll('[data-show-when]').forEach(function (el) {
           el.hidden = el.getAttribute('data-show-when') !== select.value;
+          el.querySelectorAll('input').forEach(function (input) { input.disabled = el.hidden; });
         });
       };
       select.addEventListener('change', toggle);

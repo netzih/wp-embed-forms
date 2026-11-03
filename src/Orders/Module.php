@@ -24,7 +24,8 @@ use EmbedForms\Sheet\Xlsx;
  * for people signed in to WordPress who manage the form (Access), with
  * full control of each entry:
  *
- * - order status (store forms) and tracking, with a "shipped" email;
+ * - order status (store forms) and tracking, with "ready" and "shipped"
+ *   emails;
  * - quantities, with the total worked out again (never charged again);
  * - card refunds (Payments\Refunds), cash or check received or given back;
  * - cancel and reopen; notes; the confirmation email again;
@@ -219,7 +220,17 @@ final class Module {
       'loading' => __('Loading…', 'embed-forms'),
       'close' => __('Close', 'embed-forms'),
     ];
-    $config['shippedEmail'] = $store && !empty($form['settings']['orders']['shipped_email']);
+    $config['statusEmails'] = $store ? array_values(array_filter(['ready', 'shipped'], static fn($s) => Service::offersEmail($form, $s))) : [];
+    $config['strings'] += [
+      'notify' => [
+        'ready' => __('Email each customer that it is ready', 'embed-forms'),
+        'shipped' => __('Email each customer that it shipped', 'embed-forms'),
+      ],
+      'confirmEmails' => [
+        'ready' => __('Each customer with an email address gets the ready email.', 'embed-forms'),
+        'shipped' => __('Each customer with an email address gets the shipped email.', 'embed-forms'),
+      ],
+    ];
     Page::shell($form['title'], $form, (string) ob_get_clean(), $config, ['assets/orders.js'], 'sh-manager');
   }
 
@@ -256,7 +267,7 @@ final class Module {
     $result = $key === 'order'
       ? Service::setOrder($entry, $form, $value)
       : Service::setOrder($entry, $form, (string) $entry['order_status'], $value);
-    if ($result['ok'] && $key === 'order' && $value === 'shipped' && !empty($form['settings']['orders']['shipped_email'])) {
+    if ($result['ok'] && $key === 'order' && Service::offersEmail($form, $value)) {
       $result['message'] .= ' ' . __('To email the customer, open the order.', 'embed-forms');
     }
     $this->respond($form, $entry, $result, FALSE);
@@ -276,7 +287,7 @@ final class Module {
       wp_send_json(['ok' => FALSE, 'message' => __('This column cannot be changed in bulk.', 'embed-forms')], 400);
     }
     if ($key === 'order') {
-      $notify = !empty($post['notify']) && $value === 'shipped';
+      $notify = !empty($post['notify']) && Service::offersEmail($form, $value);
       $apply = static function (array $entry) use ($form, $value, $notify): array {
         if (($entry['order_status'] ?? '') === $value) {
           return ['ok' => TRUE, 'changed' => FALSE, 'message' => ''];
@@ -299,7 +310,8 @@ final class Module {
     $post = wp_unslash($_POST);
     $entry = $this->entry($form, (int) ($post['entry'] ?? 0));
     $store = Status::isStore($form['schema']);
-    switch (sanitize_key((string) ($post['op'] ?? ''))) {
+    $op = sanitize_key((string) ($post['op'] ?? ''));
+    switch ($op) {
       case 'order':
         $result = $store ? Service::setOrder($entry, $form, (string) ($post['order_status'] ?? ''), (string) ($post['tracking'] ?? ''), !empty($post['notify'])) : NULL;
         break;
@@ -332,8 +344,10 @@ final class Module {
         $result = Service::resendReceipt($entry, $form);
         break;
 
+      case 'ready_email':
       case 'shipped_email':
-        $result = $store ? Service::sendShipped($entry, $form) : NULL;
+        $status = $op === 'ready_email' ? 'ready' : 'shipped';
+        $result = $store && $entry['order_status'] === $status ? Service::sendStatusEmail($entry, $form, $status) : NULL;
         break;
 
       case 'stop_recurring':
@@ -419,7 +433,10 @@ final class Module {
               <p class="sh-hint"><a href="<?php echo esc_url($track['url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($track['carrier'] !== '' ? sprintf(__('Track with %s', 'embed-forms'), $track['carrier']) : __('Track the package', 'embed-forms')); ?></a></p>
             <?php endif;
           endif; ?>
-          <?php if (!empty($form['settings']['orders']['shipped_email']) && is_email($email)) : ?>
+          <?php if (Service::offersEmail($form, 'ready') && is_email($email)) : ?>
+            <label class="sh-check" data-show-when="ready"><input type="checkbox" name="notify" value="1" <?php checked($entry['order_status'] !== 'ready'); ?>> <?php echo esc_html(sprintf(__('Email %s that it is ready', 'embed-forms'), $email)); ?></label>
+          <?php endif; ?>
+          <?php if (Service::offersEmail($form, 'shipped') && is_email($email)) : ?>
             <label class="sh-check" data-show-when="shipped"><input type="checkbox" name="notify" value="1" <?php checked($entry['order_status'] !== 'shipped'); ?>> <?php echo esc_html(sprintf(__('Email %s that it shipped', 'embed-forms'), $email)); ?></label>
           <?php endif; ?>
           <button type="submit" class="sh-button sh-primary"><?php esc_html_e('Save order', 'embed-forms'); ?></button>
@@ -561,11 +578,14 @@ final class Module {
         <?php if (!empty($form['settings']['autoresponder']['enabled'])) : ?>
           <form data-op="receipt" class="sh-form sh-inline"><button type="submit" class="sh-button"><?php esc_html_e('Resend confirmation', 'embed-forms'); ?></button></form>
         <?php endif; ?>
+        <?php if ($store && $entry['order_status'] === 'ready' && Service::offersEmail($form, 'ready') && is_email($email)) : ?>
+          <form data-op="ready_email" class="sh-form sh-inline"><button type="submit" class="sh-button"><?php esc_html_e('Send ready email', 'embed-forms'); ?></button></form>
+        <?php endif; ?>
         <?php if ($store && $entry['order_status'] === 'shipped' && is_email($email)) : ?>
           <form data-op="shipped_email" class="sh-form sh-inline"><button type="submit" class="sh-button"><?php esc_html_e('Send shipped email', 'embed-forms'); ?></button></form>
         <?php endif; ?>
       </div>
-      <?php if (empty($form['settings']['autoresponder']['enabled']) && !($store && $entry['order_status'] === 'shipped')) : ?>
+      <?php if (empty($form['settings']['autoresponder']['enabled']) && !($store && ($entry['order_status'] === 'shipped' || ($entry['order_status'] === 'ready' && Service::offersEmail($form, 'ready'))))) : ?>
         <p class="sh-hint"><?php esc_html_e('This form sends no confirmation email.', 'embed-forms'); ?></p>
       <?php endif; ?>
     </section>
@@ -815,6 +835,22 @@ final class Module {
       </tr>
       <?php if ($store) : ?>
         <tr>
+          <th scope="row"><?php esc_html_e('Ready email', 'embed-forms'); ?></th>
+          <td>
+            <input type="hidden" name="settings[orders][ready_email]" value="0">
+            <label><input type="checkbox" name="settings[orders][ready_email]" value="1" <?php checked($o['ready_email']); ?>> <?php esc_html_e('Offer to email the customer when an order is marked ready (for example, ready for pickup)', 'embed-forms'); ?></label>
+          </td>
+        </tr>
+        <tr data-ef-show-if="settings[orders][ready_email]">
+          <th scope="row"><label for="ef-ready-subject"><?php esc_html_e('Subject', 'embed-forms'); ?></label></th>
+          <td><input type="text" id="ef-ready-subject" name="settings[orders][ready_subject]" value="<?php echo esc_attr($o['ready_subject']); ?>" class="large-text"></td>
+        </tr>
+        <tr data-ef-show-if="settings[orders][ready_email]">
+          <th scope="row"><label for="ef-ready-body"><?php esc_html_e('Message', 'embed-forms'); ?></label></th>
+          <td><textarea id="ef-ready-body" name="settings[orders][ready_body]" rows="8" class="large-text"><?php echo esc_textarea($o['ready_body']); ?></textarea>
+            <p class="description"><?php esc_html_e('Tags: {entry_id}, {form_title}, {site_name}, {all_fields}, and the form\'s field tags.', 'embed-forms'); ?></p></td>
+        </tr>
+        <tr>
           <th scope="row"><?php esc_html_e('Shipped email', 'embed-forms'); ?></th>
           <td>
             <input type="hidden" name="settings[orders][shipped_email]" value="0">
@@ -831,6 +867,9 @@ final class Module {
             <p class="description"><?php esc_html_e('Tags: {tracking_number}, {tracking_link} (a "Track your package" link for UPS, USPS and FedEx numbers), {entry_id}, {form_title}, {site_name}, {all_fields}, and the form\'s field tags.', 'embed-forms'); ?></p></td>
         </tr>
       <?php else : ?>
+        <input type="hidden" name="settings[orders][ready_email]" value="<?php echo $o['ready_email'] ? '1' : '0'; ?>">
+        <input type="hidden" name="settings[orders][ready_subject]" value="<?php echo esc_attr($o['ready_subject']); ?>">
+        <input type="hidden" name="settings[orders][ready_body]" value="<?php echo esc_attr($o['ready_body']); ?>">
         <input type="hidden" name="settings[orders][shipped_email]" value="<?php echo $o['shipped_email'] ? '1' : '0'; ?>">
         <input type="hidden" name="settings[orders][shipped_subject]" value="<?php echo esc_attr($o['shipped_subject']); ?>">
         <input type="hidden" name="settings[orders][shipped_body]" value="<?php echo esc_attr($o['shipped_body']); ?>">
@@ -867,8 +906,10 @@ final class Module {
             </select></p>
           <p><label for="ef-order-tracking"><strong><?php esc_html_e('Tracking number', 'embed-forms'); ?></strong></label><br>
             <input type="text" id="ef-order-tracking" name="tracking" value="<?php echo esc_attr((string) $entry['tracking']); ?>" class="widefat"></p>
-          <?php if (!empty($form['settings']['orders']['shipped_email']) && is_email((string) $entry['payer_email'])) : ?>
-            <p><label><input type="checkbox" name="notify" value="1"> <?php esc_html_e('When shipped, email the customer', 'embed-forms'); ?></label></p>
+          <?php
+          $emails = array_filter(['ready' => __('ready', 'embed-forms'), 'shipped' => __('shipped', 'embed-forms')], static fn($s) => Service::offersEmail($form, $s), ARRAY_FILTER_USE_KEY);
+          if ($emails && is_email((string) $entry['payer_email'])) : ?>
+            <p><label><input type="checkbox" name="notify" value="1"> <?php echo esc_html(sprintf(__('When %s, email the customer', 'embed-forms'), implode(' ' . __('or', 'embed-forms') . ' ', $emails))); ?></label></p>
           <?php endif; ?>
           <p><button type="submit" class="button"><?php esc_html_e('Save order', 'embed-forms'); ?></button>
             <a href="<?php echo esc_url(self::url((int) $form['id'])); ?>" target="_blank" rel="noopener" style="margin-left:8px"><?php esc_html_e('Manager page', 'embed-forms'); ?></a></p>

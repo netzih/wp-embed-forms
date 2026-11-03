@@ -197,11 +197,13 @@ WordPress:
   totals, downloads) with Order and Tracking changeable in place and a
   Balance column. The entry number opens the entry's panel.
 - **Bulk changes:** as on the shared entries page, for answers and the
-  order status (optionally sending each customer the shipped email).
+  order status (optionally sending each customer the ready or shipped
+  email).
   Tracking numbers, quantities and money are changed one entry at a time.
-- **Panel:** order status and tracking, with an optional "shipped" email
-  (subject and message per form; `{tracking_number}`, `{tracking_link}`
-  for UPS, USPS and FedEx numbers); quantities, with the total worked out
+- **Panel:** order status and tracking, with an optional "ready" email
+  (off until turned on in the form's settings, for example "ready for
+  pickup") and "shipped" email (subject and message per form;
+  `{tracking_number}`, `{tracking_link}` for UPS, USPS and FedEx numbers); quantities, with the total worked out
   again (following products too, and shipping dropped on a pickup order),
   never charged again: a higher total shows as a balance due, a lower one
   as a refund due; card refunds (the same code as the entry screen) and

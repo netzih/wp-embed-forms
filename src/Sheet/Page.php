@@ -266,7 +266,7 @@ final class Page {
       . '<strong class="sh-bulk-count"></strong>'
       . '<label><span>' . esc_html__('Set', 'embed-forms') . '</span><select class="sh-bulk-column"></select></label>'
       . '<label><span>' . esc_html__('to', 'embed-forms') . '</span><span class="sh-bulk-value"></span></label>'
-      . '<label class="sh-bulk-notify" hidden><input type="checkbox" checked> ' . esc_html__('Email each customer that it shipped', 'embed-forms') . '</label>'
+      . '<label class="sh-bulk-notify" hidden><input type="checkbox" checked> <span></span></label>'
       . '<button type="button" class="sh-button sh-primary sh-bulk-apply">' . esc_html__('Review change', 'embed-forms') . '</button>'
       . '<button type="button" class="sh-button sh-quiet sh-bulk-clear">' . esc_html__('Clear selection', 'embed-forms') . '</button>'
       . '</div>'
@@ -337,7 +337,6 @@ final class Page {
         /* translators: 1: column, 2: new value, 3: number of entries */
         'confirmTitle' => __('Set %1$s to "%2$s" on %3$s?', 'embed-forms'),
         'confirmText' => __('Each entry\'s history records the old and new value. Entries where this question does not apply are skipped.', 'embed-forms'),
-        'confirmEmail' => __('Each customer with an email address gets the shipped email.', 'embed-forms'),
         /* translators: %s: number of entries */
         'confirmButton' => __('Change %s', 'embed-forms'),
         'blank' => __('(empty)', 'embed-forms'),

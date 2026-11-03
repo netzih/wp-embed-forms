@@ -287,6 +287,7 @@ button.sh-button { font: inherit; cursor: pointer; }
 .sh-bulk .sh-quiet { color: #c9cec8; }
 .sh-bulk .sh-quiet:hover { color: #fff; }
 .sh-bulk-notify input { accent-color: #fff; }
+.sh-bulk-notify[hidden] { display: none; }
 .sh-dialog {
   width: min(460px, calc(100% - 32px));
   padding: 24px;
@@ -376,6 +377,7 @@ body.has-panel { overflow: hidden; }
 .sh-row .sh-grow input { width: 100%; }
 .sh-check { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; font-size: 13.5px; }
 .sh-check input { margin-top: 3px; }
+.sh-check[hidden] { display: none; }
 .sh-hint { color: var(--sh-muted); font-size: 12.5px; margin: 8px 0 0; }
 .sh-inline { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .sh-actions { display: flex; flex-wrap: wrap; gap: 8px; }

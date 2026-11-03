@@ -78,17 +78,29 @@ final class Service {
       self::changed($form, (int) $entry['id']);
     }
     $message = $row ? __('Order saved.', 'embed-forms') : __('Nothing changed.', 'embed-forms');
-    if ($notify && $status === 'shipped') {
-      $sent = self::sendShipped($entry, $form);
+    if ($notify && self::offersEmail($form, $status)) {
+      $sent = self::sendStatusEmail($entry, $form, $status);
       $message .= ' ' . $sent['message'];
     }
     return ['ok' => TRUE, 'message' => trim($message)];
   }
 
-  public static function sendShipped(array $entry, array $form): array {
+  /**
+   * Whether the form offers the customer an email for this order status
+   * (ready or shipped).
+   */
+  public static function offersEmail(array $form, string $status): bool {
+    return in_array($status, ['ready', 'shipped'], TRUE) && !empty($form['settings']['orders'][$status . '_email']);
+  }
+
+  /**
+   * The ready or shipped email, sent to the order's email address.
+   */
+  public static function sendStatusEmail(array $entry, array $form, string $status): array {
+    $ready = $status === 'ready';
     $email = (string) $entry['payer_email'];
     if (!is_email($email)) {
-      return ['ok' => FALSE, 'message' => __('No shipped email: the order has no email address.', 'embed-forms')];
+      return ['ok' => FALSE, 'message' => $ready ? __('No ready email: the order has no email address.', 'embed-forms') : __('No shipped email: the order has no email address.', 'embed-forms')];
     }
     $settings = $form['settings']['orders'];
     $link = Tracking::link((string) $entry['tracking']);
@@ -98,11 +110,13 @@ final class Service {
       'tracking_url' => $link['url'],
     ];
     $html = ['tracking_link' => $link['url'] !== '' ? '<a href="' . esc_url($link['url']) . '">' . esc_html__('Track your package', 'embed-forms') . '</a>' : ''];
-    $ok = Mailer::message($form, $entry, [$email], $settings['shipped_subject'], $settings['shipped_body'], $extra, $html);
-    if ($ok) {
-      Notes::add((int) $entry['id'], sprintf(__('Shipped email sent to %1$s by %2$s.', 'embed-forms'), $email, self::who()));
+    $key = $ready ? 'ready' : 'shipped';
+    $ok = Mailer::message($form, $entry, [$email], $settings[$key . '_subject'], $settings[$key . '_body'], $extra, $html);
+    if (!$ok) {
+      return ['ok' => FALSE, 'message' => $ready ? __('The ready email could not be sent.', 'embed-forms') : __('The shipped email could not be sent.', 'embed-forms')];
     }
-    return ['ok' => $ok, 'message' => $ok ? sprintf(__('Shipped email sent to %s.', 'embed-forms'), $email) : __('The shipped email could not be sent.', 'embed-forms')];
+    Notes::add((int) $entry['id'], sprintf($ready ? __('Ready email sent to %1$s by %2$s.', 'embed-forms') : __('Shipped email sent to %1$s by %2$s.', 'embed-forms'), $email, self::who()));
+    return ['ok' => TRUE, 'message' => sprintf($ready ? __('Ready email sent to %s.', 'embed-forms') : __('Shipped email sent to %s.', 'embed-forms'), $email)];
   }
 
   public static function cancel(array $entry, array $form, bool $refund): array {
