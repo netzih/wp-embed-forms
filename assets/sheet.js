@@ -444,7 +444,11 @@
         pickAll.checked = rows.length > 0 && rows.length === shown;
         pickAll.indeterminate = rows.length > 0 && rows.length < shown;
       }
-      notify.hidden = !(config.shippedEmail && bulkColumn().key === 'order' && valueField && valueField.value === 'shipped');
+      var emailFor = bulkColumn().key === 'order' && valueField && (config.statusEmails || []).indexOf(valueField.value) !== -1 ? valueField.value : '';
+      notify.hidden = emailFor === '';
+      if (emailFor) {
+        notify.querySelector('span').textContent = strings.notify[emailFor];
+      }
     };
     api.onRefresh = update;
 
@@ -481,7 +485,7 @@
       var ids = rows.map(function (row) { return '#' + row.getAttribute('data-entry'); });
       var sendEmail = !notify.hidden && notify.querySelector('input').checked;
       dialog.querySelector('#sh-dialog-title').textContent = (strings.confirmTitle || '%1$s %2$s %3$s').replace('%1$s', column.label).replace('%2$s', shownValue).replace('%3$s', amount);
-      dialog.querySelector('.sh-dialog-text').textContent = strings.confirmText + (sendEmail ? ' ' + strings.confirmEmail : '');
+      dialog.querySelector('.sh-dialog-text').textContent = strings.confirmText + (sendEmail ? ' ' + strings.confirmEmails[valueField.value] : '');
       dialog.querySelector('.sh-dialog-list').textContent = ids.slice(0, 12).join(', ') + (ids.length > 12 ? ' ' + (strings.more || 'and %s more').replace('%s', ids.length - 12) : '');
       dialog.querySelector('.sh-dialog-ok').textContent = (strings.confirmButton || 'Change %s').replace('%s', amount);
       dialog.returnValue = '';

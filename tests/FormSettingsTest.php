@@ -16,6 +16,17 @@ final class FormSettingsTest extends TestCase {
     self::assertFalse(FormSettings::normalize(['allow_direct' => FALSE])['allow_direct']);
   }
 
+  public function testOrderEmails(): void {
+    $o = FormSettings::normalize(NULL)['orders'];
+    self::assertFalse($o['ready_email']);
+    self::assertTrue($o['shipped_email']);
+    self::assertSame('Your order is ready for pickup', $o['ready_subject']);
+    $o = FormSettings::normalize(['orders' => ['ready_email' => '1', 'ready_subject' => 'Come get it', 'ready_body' => '  ']])['orders'];
+    self::assertTrue($o['ready_email']);
+    self::assertSame('Come get it', $o['ready_subject']);
+    self::assertStringContainsString('ready for pickup', $o['ready_body']);
+  }
+
   public function testAccent(): void {
     self::assertSame('blue', FormSettings::normalize(NULL)['accent']);
     self::assertSame('teal', FormSettings::normalize(['accent' => 'teal'])['accent']);
