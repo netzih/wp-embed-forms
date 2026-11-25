@@ -146,37 +146,63 @@ final class PageTemplate {
 
   /**
    * On a domain set as a page's own address, the root shows that page and
-   * any other address goes to the same path on this site.
+   * any other address goes to the same path on this site. An own address
+   * can also be a domain and a path (give.example.org/winter), so several
+   * pages share one domain; if no page has the bare domain, its root goes
+   * to the newest page on it.
    */
   public function ownAddress(array $query): array {
     $host = self::requestHost();
     $map = get_option(self::DOMAINS_OPTION, []);
-    if ($host === '' || !is_array($map)) {
+    if ($host === '' || !is_array($map) || !$map) {
       return $query;
     }
     // www. in front of an own address goes to the address itself.
-    if (empty($map[$host]) && str_starts_with($host, 'www.') && !empty($map[substr($host, 4)])) {
+    if (!self::hostPages($map, $host) && str_starts_with($host, 'www.') && self::hostPages($map, substr($host, 4))) {
       wp_redirect('https://' . substr($host, 4) . (string) ($_SERVER['REQUEST_URI'] ?? '/'), 301);
       exit;
     }
-    if (empty($map[$host])) {
+    $pages = self::hostPages($map, $host);
+    if (!$pages) {
       return $query;
     }
     $path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
-    if (trim($path, '/') !== '') {
+    $slug = strtolower(trim($path, '/'));
+    $queryString = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_QUERY);
+    if ($slug === '' && !isset($pages[''])) {
+      // No page on the bare domain: send its root to the newest page on it.
+      $newest = array_search(max($pages), $pages, TRUE);
+      wp_redirect('https://' . $host . '/' . $newest . '/' . ($queryString !== '' ? '?' . $queryString : ''), 302);
+      exit;
+    }
+    if (!isset($pages[$slug])) {
       // Forms, the REST API and logins keep working on the alias.
       if (preg_match('#^/(wp-json|wp-admin|wp-login\.php|' . preg_quote(\EmbedForms\Embed::base(), '#') . ')(/|$)#', $path)) {
         return $query;
       }
-      $queryString = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_QUERY);
       wp_redirect(home_url($path) . ($queryString !== '' ? '?' . $queryString : ''), 301);
       exit;
     }
-    $pageId = (int) $map[$host];
+    $pageId = $pages[$slug];
+    $address = 'https://' . $host . '/' . ($slug !== '' ? $slug . '/' : '');
     // This host is not the site's own, which WordPress would redirect away.
     remove_action('template_redirect', 'redirect_canonical');
-    add_filter('get_canonical_url', static fn($url, $post) => $post && (int) $post->ID === $pageId ? 'https://' . $host . '/' : $url, 10, 2);
+    add_filter('get_canonical_url', static fn($url, $post) => $post && (int) $post->ID === $pageId ? $address : $url, 10, 2);
     return ['page_id' => $pageId];
+  }
+
+  /**
+   * path => page id for the own addresses on one host ('' is the root).
+   */
+  public static function hostPages(array $map, string $host): array {
+    $pages = [];
+    foreach ($map as $address => $id) {
+      [$addressHost, $slug] = array_pad(explode('/', (string) $address, 2), 2, '');
+      if ($addressHost === $host && (int) $id > 0) {
+        $pages[$slug] = (int) $id;
+      }
+    }
+    return $pages;
   }
 
   private static function requestHost(): string {
@@ -196,8 +222,8 @@ final class PageTemplate {
     $domain = (string) get_post_meta($post->ID, self::DOMAIN_META, TRUE);
     ?>
     <p><label for="ef-page-domain"><?php esc_html_e('Also show this page at', 'embed-forms'); ?></label>
-      <input type="text" id="ef-page-domain" name="embed_forms_domain" value="<?php echo esc_attr($domain); ?>" placeholder="give.example.org" class="widefat"></p>
-    <p class="description"><?php esc_html_e('For pages on the "Embed Forms: Full page" template. Point the domain at this site first (a domain alias in Plesk, with SSL). Its home page then shows this page; other addresses on it go to this site.', 'embed-forms'); ?></p>
+      <input type="text" id="ef-page-domain" name="embed_forms_domain" value="<?php echo esc_attr($domain); ?>" placeholder="give.example.org or give.example.org/appeal" class="widefat"></p>
+    <p class="description"><?php esc_html_e('For pages on the "Embed Forms: Full page" template. Point the domain at this site first (a domain alias in Plesk, with SSL). Its home page then shows this page; other addresses on it go to this site. Add a path (give.example.org/appeal) to put several pages on one domain; if no page has the bare domain, its home page goes to the newest of them.', 'embed-forms'); ?></p>
     <?php
   }
 
@@ -210,7 +236,7 @@ final class PageTemplate {
     }
     $domain = self::cleanDomain((string) wp_unslash($_POST['embed_forms_domain'] ?? ''));
     $siteHost = strtolower((string) parse_url(home_url(), PHP_URL_HOST));
-    if ($domain === '' || $domain === $siteHost) {
+    if ($domain === '' || explode('/', $domain)[0] === $siteHost) {
       delete_post_meta($postId, self::DOMAIN_META);
     }
     else {
@@ -222,8 +248,18 @@ final class PageTemplate {
   public static function cleanDomain(string $value): string {
     $value = strtolower(trim($value));
     $value = (string) preg_replace('#^https?://#', '', $value);
-    $value = rtrim((string) preg_replace('#/.*$#', '', $value), '.');
-    return preg_match('/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/', $value) ? $value : '';
+    $value = (string) preg_replace('/[?#].*$/', '', $value);
+    [$host, $path] = array_pad(explode('/', $value, 2), 2, '');
+    $host = rtrim($host, '.');
+    if (!preg_match('/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/', $host)) {
+      return '';
+    }
+    // One path segment at most: give.example.org/winter-camp.
+    $path = trim($path, '/');
+    if ($path === '') {
+      return $host;
+    }
+    return preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $path) ? $host . '/' . $path : '';
   }
 
   /**
