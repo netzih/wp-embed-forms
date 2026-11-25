@@ -78,10 +78,22 @@ final class CampaignTest extends TestCase {
 
   public function testOwnAddressDomain(): void {
     $clean = [\EmbedForms\Render\PageTemplate::class, 'cleanDomain'];
-    self::assertSame('give.youngshluchim.org', $clean(' https://Give.YoungShluchim.org/give?x=1 '));
+    self::assertSame('give.youngshluchim.org', $clean(' https://Give.YoungShluchim.org/?x=1 '));
+    self::assertSame('give.youngshluchim.org/kinus', $clean('https://Give.YoungShluchim.org/Kinus/?x=1'));
+    self::assertSame('give.youngshluchim.org/winter-camp', $clean('give.youngshluchim.org/winter-camp'));
+    self::assertSame('', $clean('give.youngshluchim.org/a/b'));
+    self::assertSame('', $clean('give.youngshluchim.org/<x>'));
     self::assertSame('', $clean('localhost'));
     self::assertSame('', $clean('evil.org"><script>'));
     self::assertSame('', $clean(''));
+  }
+
+  public function testOwnAddressPagesPerHost(): void {
+    $map = ['give.youngshluchim.org/kinus' => 30137, 'give.youngshluchim.org/winter-camp' => 30199, 'other.org' => 5];
+    $pages = \EmbedForms\Render\PageTemplate::hostPages($map, 'give.youngshluchim.org');
+    self::assertSame(['kinus' => 30137, 'winter-camp' => 30199], $pages);
+    self::assertSame(['' => 5], \EmbedForms\Render\PageTemplate::hostPages($map, 'other.org'));
+    self::assertSame([], \EmbedForms\Render\PageTemplate::hostPages($map, 'donate.shluchim.org'));
   }
 
   public function testDonorLimitAndStartDate(): void {
